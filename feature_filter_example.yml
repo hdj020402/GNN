@@ -1,0 +1,48 @@
+1:
+  node_attr_list: []
+  edge_attr_list: []
+  graph_attr_list: [water_content, temperature]
+2:
+  node_attr_list: [charge]
+  edge_attr_list: []
+  graph_attr_list: [water_content, temperature]
+3:
+  node_attr_list: [dispersion]
+  edge_attr_list: []
+  graph_attr_list: [water_content, temperature]
+4:
+  node_attr_list: []
+  edge_attr_list: []
+  graph_attr_list: [water_content, temperature, num_hbond]
+5:
+  node_attr_list: []
+  edge_attr_list: []
+  graph_attr_list: [water_content, temperature, interaction_energy]
+6:
+  node_attr_list: [charge]
+  edge_attr_list: []
+  graph_attr_list: [water_content, temperature, num_hbond]
+7:
+  node_attr_list: [charge]
+  edge_attr_list: []
+  graph_attr_list: [water_content, temperature, interaction_energy]
+8:
+  node_attr_list: [dispersion]
+  edge_attr_list: []
+  graph_attr_list: [water_content, temperature, num_hbond]
+9:
+  node_attr_list: [dispersion]
+  edge_attr_list: []
+  graph_attr_list: [water_content, temperature, interaction_energy]
+10:
+  node_attr_list: [charge, dispersion]
+  edge_attr_list: []
+  graph_attr_list: [water_content, temperature]
+11:
+  node_attr_list: [charge, dispersion]
+  edge_attr_list: []
+  graph_attr_list: [water_content, temperature, num_hbond]
+12:
+  node_attr_list: [charge, dispersion]
+  edge_attr_list: []
+  graph_attr_list: [water_content, temperature, interaction_energy]

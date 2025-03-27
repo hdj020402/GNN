@@ -1,0 +1,70 @@
+### General ###
+jobtype: viscosity
+mode: training   # training / hparam_tuning / feature_filtration / prediction / fine-tuning
+feature_filter_mode: one_by_one   # one_by_one / file / null
+seed: 42
+GPU_memo_frac: 0.5
+
+### Dataset ###
+path: database/viscosity/   # to store processed data
+sdf_file: database/viscosity/merged_mol.sdf
+node_attr_file: database/viscosity/DFT/node_attr.json
+edge_attr_file: null
+graph_attr_file: database/viscosity/DFT/attr_train.csv
+weight_file: test.json
+_ATOM_TYPE: ['H', 'C', 'N', 'O', 'F']
+default_node_attr:
+  ele_type: True
+  atomic_number: True
+  aromatic: True
+  num_neighbors: True
+  num_hs: True
+default_edge_attr:
+  edge_type: True
+  bond_length:
+    power: [r^-1]   # r^n
+    threshold: null
+node_attr_list: [charge]
+edge_attr_list: []
+graph_attr_list: [energy]
+node_attr_filter: []   # remove one hot
+edge_attr_filter: []   # no filter
+pos: True
+target_type: graph   # graph / node / edge
+target_list: ['viscosity']
+target_transform: LN   # LN / LG / E^-x / null
+batch_size: 32
+num_workers: 4
+split_method: manual   # random / manual
+SPLIT_file: database/viscosity/split_1000.npy
+train_size: 0.6
+val_size: 0.2
+
+### Model ###
+pretrained_model: null
+dim_linear: 128
+dim_conv: 128
+processing_steps: 3
+mp_times: 3
+loss_fn: MAE   # MAE / MSE
+optimizer: Adam
+lr: 0.01
+scheduler:
+  type: ReduceLROnPlateau
+  factor: 0.7
+  patience: 20
+  min_lr: 0.00001
+
+### Training ###
+epoch_num: 500
+output_step: 1
+model_save_step: 50
+early_stopping:
+  patience: 20
+  delta: 0
+criteria_list: ['MAE', 'R2', 'AARD']
+optim_criteria: 'MAE'
+
+### Prediction ###
+dataset_range: test   # train / val / test / whole
+

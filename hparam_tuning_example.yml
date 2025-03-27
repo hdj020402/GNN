@@ -1,0 +1,47 @@
+### General ###
+optuna:
+  sampler:
+    type: TPESampler   # GridSampler / RandomSampler / TPESampler ...
+    seed: 42
+  pruner:
+    type: MedianPruner   # HyperbandPruner / ThresholdPruner / MedianPruner ...
+    n_warmup_steps: 20
+  direction: minimize
+  n_trials: 100
+  continue_trials:
+    continue: False
+    storage: null
+    study_name: null
+
+### Dataset ###
+batch_size:
+  type: discrete_uniform
+  low: 32
+  high: 256
+  q: 32
+
+### Model ###
+dim_linear:
+  type: int
+  low: 16
+  high: 256
+dim_conv:
+  type: int
+  low: 16
+  high: 256
+processing_steps:
+  type: int
+  low: 1
+  high: 12
+mp_times:
+  type: int
+  low: 3
+  high: 8
+optimizer:
+  type: categorical
+  choices: [Adam, AdamW, SGD]
+lr:
+  type: loguniform
+  low: 0.0001
+  high: 0.01
+
