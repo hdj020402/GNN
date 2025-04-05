@@ -251,7 +251,10 @@ def hparam_tuning(param: Dict, ht_param: Dict[str, Dict]) -> None:
 
     fp.hptuning_log(study)
 
-if __name__ == '__main__':
+def main():
+    """
+    Main function to execute the script based on the mode specified in the configuration file.
+    """
     TIME = time.strftime('%b_%d_%Y_%H%M%S', time.localtime())
     with open('model_parameters.yml', 'r', encoding='utf-8') as mp:
         param: Dict = yaml.full_load(mp)
@@ -278,3 +281,8 @@ if __name__ == '__main__':
             raise ValueError('Wrong feature_filter_mode! Please check `model_parameters.yml`.')
     elif param['mode'] == 'prediction':
         prediction(param)
+    else:
+        raise ValueError('Invalid mode specified in `model_parameters.yml`. Please check the configuration.')
+
+if __name__ == '__main__':
+    main()
