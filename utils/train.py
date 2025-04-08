@@ -20,17 +20,25 @@ def train(
     optimizer: Union[AdamW, SGD, Adam],
     loss_fn: Literal['MAE', 'MSE'],
     device: torch.device,
-) -> float:
+    accumulation_steps: int = 1
+    ) -> float:
     model.train()
     loss_all = 0
 
-    for data in train_loader:
+    for i, data in enumerate(train_loader):
         data = data.to(device)
-        optimizer.zero_grad()
         output = model(data)
         loss = weighted_loss(output, data.y, data.weight, loss_fn)
-        loss.backward()
         loss_all += loss.item() * data.num_graphs
+        loss = loss / accumulation_steps
+        loss.backward()
+
+        if (i + 1) % accumulation_steps == 0:
+            optimizer.step()
+            optimizer.zero_grad()
+
+    if (i + 1) % accumulation_steps != 0:
         optimizer.step()
+        optimizer.zero_grad()
 
     return loss_all / len(train_loader.dataset)
