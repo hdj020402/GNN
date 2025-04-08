@@ -140,6 +140,7 @@ conda create -n <newenv>
             - `patience`: integer
             - `min_lr`: decimal
     - Training
+        - `accumulation_step`: integer, the number of steps between gradient accumulation
         - `epoch_num`: integer
         - `output_step`: integer, the number of steps between printing output information
         - `model_save_step`: integer, the number of steps between generating checkpoints

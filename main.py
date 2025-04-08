@@ -75,7 +75,7 @@ def training(param: Dict, ht_param: Dict | None = None, trial: optuna.Trial | No
     for epoch in range(start_epoch, epoch_num+1):
         try:
             lr = scheduler.optimizer.param_groups[0]['lr']
-            loss = train(model, train_loader, optimizer, param['loss_fn'], device)
+            loss = train(model, train_loader, optimizer, param['loss_fn'], device, param['accumulation_step'])
             error_dict['Overall']['LR'] = round(lr, 7)
             error_dict['Overall']['Loss'] = round(loss, 7)
             for phase, loader in zip(['Train', 'Val', 'Test'], [train_loader, val_loader, test_loader]):

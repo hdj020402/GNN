@@ -56,6 +56,7 @@ scheduler:
   min_lr: 0.00001
 
 ### Training ###
+accumulation_step: 1
 epoch_num: 500
 output_step: 1
 model_save_step: 50
