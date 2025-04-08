@@ -167,7 +167,10 @@ def prediction(param: Dict) -> None:
     dp_end_time = time.perf_counter()
 
     loader_dict = {'train': train_loader, 'val': val_loader, 'test': test_loader, 'whole': pred_loader}
-    loader = loader_dict[param['dataset_range']]
+    try:
+        loader = loader_dict[param['dataset_range']]
+    except KeyError:
+        loader = pred_loader
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = gen_model(param, dataset)
