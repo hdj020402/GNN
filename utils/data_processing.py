@@ -6,7 +6,6 @@ import os, yaml
 from torch.utils.data import random_split, Subset
 from torch_geometric.loader import DataLoader
 from typing import Dict
-from utils.calc_mean_std import calc_mean_std
 from datasets.graph_dataset import Graph
 from datasets.datasets import CustomSubset
 from datasets.transform import Complete, CompleteWithDistanceFilter, PowerDistance
@@ -173,21 +172,22 @@ class data_processing():
     def get_mean_std(self):
         if self.param['mode'] == 'prediction':
             pretrained_model = self.param['pretrained_model']
-            state_dict: Dict = torch.load(pretrained_model, map_location = torch.device('cpu'))
+            state_dict: Dict = torch.load(pretrained_model, map_location=torch.device('cpu'))
             mean = state_dict['mean']
             std = state_dict['std']
         else:
             train_dataset = CustomSubset(self.dataset, self.train_dataset.indices)
             if self.param['graph_attr_list']:
-                mean, std = calc_mean_std(
-                    torch.cat(
-                        [
-                            train_dataset.graph_attr,
-                            train_dataset.y
-                            ],
-                        dim = 1
-                        )
-                    )
+                combined_data = torch.cat(
+                    [
+                        train_dataset.graph_attr,
+                        train_dataset.y
+                    ],
+                    dim=1
+                )
+                mean = combined_data.mean(dim=0)
+                std = combined_data.std(dim=0, unbiased=False)
             else:
-                mean, std = calc_mean_std(train_dataset.y)
+                mean = train_dataset.y.mean(dim=0)
+                std = train_dataset.y.std(dim=0, unbiased=False)
         return mean, std
