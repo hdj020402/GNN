@@ -33,11 +33,6 @@ def training(param: Dict, ht_param: Dict | None = None, trial: optuna.Trial | No
     gpu_monitor.start()
     error_dict = fp.error_dict
 
-    seed = param['seed']
-    setup_seed(seed)
-    os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
-    torch.use_deterministic_algorithms(True)
-
     epoch_num = param['epoch_num']
 
     dp_start_time = time.perf_counter()
@@ -151,11 +146,6 @@ def prediction(param: Dict) -> None:
     subtasks = fp.subtasks
     error_dict = fp.error_dict
 
-    seed = param['seed']
-    setup_seed(seed)
-    os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
-    torch.use_deterministic_algorithms(True)
-
     dp_start_time = time.perf_counter()
     DATA = data_processing(param, reprocess = reprocess(param))
     dataset = DATA.dataset
@@ -221,11 +211,6 @@ def hparam_tuning(param: Dict, ht_param: Dict[str, Dict]) -> None:
     storage_name = fp.optuna_db
     hptuning_logger = fp.hptuning_logger
 
-    seed = param['seed']
-    setup_seed(seed)
-    os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
-    torch.use_deterministic_algorithms(True)
-
     def hparam_optim(param: Dict, ht_param: Dict[str, Dict], trial: optuna.Trial) -> float:
         SUGGEST_METHOD_MAP = {
             'int': trial.suggest_int,
@@ -262,6 +247,11 @@ def main():
     with open('model_parameters.yml', 'r', encoding='utf-8') as mp:
         param: Dict = yaml.full_load(mp)
     param['time'] = TIME
+
+    seed = param['seed']
+    setup_seed(seed)
+    os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
+    torch.use_deterministic_algorithms(True)
 
     if param['mode'] in ['training', 'fine-tuning']:
         training(param)
