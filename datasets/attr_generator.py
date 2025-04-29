@@ -9,13 +9,14 @@ from typing import Dict, List
 from datasets.utils import one_hot
 
 
-def get_node_attr(mol,
-                  default_node_attr: Dict,
-                  atom_type: List,
-                  _node_attr_dict: Dict[str, List],
-                  node_attr_list: List,
-                  filter: List,
-                  ) -> tuple[torch.Tensor, torch.Tensor]:
+def get_node_attr(
+    mol: Chem.rdchem.Mol,
+    default_node_attr: Dict,
+    atom_type: List,
+    _node_attr_dict: Dict[str, List],
+    node_attr_list: List,
+    filter: List,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
     '''Generator of node attributes.
 
     Args:
@@ -27,7 +28,7 @@ def get_node_attr(mol,
         filter: list of attr index that need to be filtered.
 
     Return:
-        mol_node_attr(np.array, shape=N*(len(_ATOM_TYPE)+4+X)): including
+        mol_node_attr(np.array, shape=N*(len(atom_type)+4+X)): including
             one hot repr of atom type,
             atomic number,
             whether is aromatic,
@@ -48,6 +49,7 @@ def get_node_attr(mol,
     num_hs = []
 
     for atom in mol.GetAtoms():
+        atom: Chem.rdchem.Atom
         type_idx = atom_type.index(atom.GetSymbol())
         type_idx_hot.append(one_hot(type_idx, len(atom_type)))
         atomic_number.append(atom.GetAtomicNum())
@@ -56,6 +58,7 @@ def get_node_attr(mol,
         num_neighbors.append(len(neighbors))
         nhs = 0
         for neighbor in neighbors:
+            neighbor: Chem.rdchem.Atom
             if neighbor.GetAtomicNum() == 1:
                 nhs += 1
         num_hs.append(nhs)
@@ -102,7 +105,7 @@ def get_node_attr(mol,
     return torch.tensor(mol_node_attr, dtype=torch.float), pos
 
 
-def get_adj_mat(mol, tot_atom: int=0):
+def get_adj_mat(mol: Chem.rdchem.Mol, tot_atom: int=0) -> torch.Tensor:
     '''Generator of adj matrix.
 
     Args:
@@ -115,6 +118,7 @@ def get_adj_mat(mol, tot_atom: int=0):
     start_list = []
     end_list = []
     for bond in mol.GetBonds():
+        bond: Chem.rdchem.Bond
         start_list.append(bond.GetBeginAtomIdx())
         end_list.append(bond.GetEndAtomIdx())
 
@@ -127,13 +131,14 @@ def get_adj_mat(mol, tot_atom: int=0):
     return mol_adj_mat
 
 
-def get_edge_attr(mol,
-                  default_edge_attr: Dict,
-                  bond_type: Dict,
-                  _edge_attr_dict: Dict[str, List],
-                  edge_attr_list: List,
-                  filter: List,
-                  ):
+def get_edge_attr(
+    mol: Chem.rdchem.Mol,
+    default_edge_attr: Dict,
+    bond_type: Dict,
+    _edge_attr_dict: Dict[str, List],
+    edge_attr_list: List,
+    filter: List,
+    ) -> torch.Tensor | None:
     '''Generator of edge type.
 
     Args:
@@ -153,6 +158,7 @@ def get_edge_attr(mol,
     # default
     edge_type = []
     for bond in mol.GetBonds():
+        bond: Chem.rdchem.Bond
         edge_type += 2 * [bond_type[bond.GetBondType()]]
 
     default_node_attr_dict = {

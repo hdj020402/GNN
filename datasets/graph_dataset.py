@@ -26,7 +26,7 @@ class Graph(InMemoryDataset):
                  edge_attr_file: str=None,
                  graph_attr_file: str=None,
                  weight_file: str=None,
-                 _ATOM_TYPE: List[str]=None,
+                 atom_type: List[str]=None,
                  default_node_attr: Dict=None,
                  default_edge_attr: Dict=None,
                  node_attr_list: List[str]=[],
@@ -67,7 +67,7 @@ class Graph(InMemoryDataset):
         self.edge_attr_file = edge_attr_file
         self.graph_attr_file = graph_attr_file
         self.weight_file = weight_file
-        self._ATOM_TYPE = _ATOM_TYPE
+        self.atom_type = atom_type
         self.default_node_attr = default_node_attr
         self.default_edge_attr = default_edge_attr
         self.node_attr_list = node_attr_list
@@ -187,7 +187,7 @@ class Graph(InMemoryDataset):
             _node_attr_dict = {k: v[i] for k, v in node_attr_dict.items()} if node_attr_dict else None
             x, pos = get_node_attr(mol,
                                    self.default_node_attr,
-                                   self._ATOM_TYPE,
+                                   self.atom_type,
                                    _node_attr_dict,
                                    self.node_attr_list,
                                    self.node_attr_filter,

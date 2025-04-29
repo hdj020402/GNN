@@ -7,7 +7,7 @@ KEYS = [
     'edge_attr_file',
     'graph_attr_file',
     'weight_file',
-    '_ATOM_TYPE',
+    'atom_type',
     'default_node_attr',
     'default_edge_attr',
     'node_attr_list',

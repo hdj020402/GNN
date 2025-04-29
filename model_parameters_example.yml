@@ -12,7 +12,7 @@ node_attr_file: database/viscosity/DFT/node_attr.json
 edge_attr_file: null
 graph_attr_file: database/viscosity/DFT/attr_train.csv
 weight_file: test.json
-_ATOM_TYPE: ['H', 'C', 'N', 'O', 'F']
+atom_type: ['H', 'C', 'N', 'O', 'F']
 default_node_attr:
   ele_type: True
   atomic_number: True

@@ -97,7 +97,7 @@ conda create -n <newenv>
                 |...|...|...|...|...|
                 |1|2|...|4|10|
 
-        - `_ATOM_TYPE`: list, to identify all unique element types present in the structures
+        - `atom_type`: list, to identify all unique element types present in the structures
         - `default_node_attr`: dict[str, bool], you can choose whether to include each default node attribute
             - `ele_type`: one hot, determine the type of element
             - `atomic_number`: the atomic number of an atom

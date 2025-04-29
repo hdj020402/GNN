@@ -19,7 +19,7 @@ class data_processing():
         self.edge_attr_file = param['edge_attr_file']
         self.graph_attr_file = param['graph_attr_file']
         self.weight_file = param['weight_file']
-        self._ATOM_TYPE = param['_ATOM_TYPE']
+        self.atom_type = param['atom_type']
         self.default_node_attr = param['default_node_attr']
         self.default_edge_attr = param['default_edge_attr']
         self.transform = self.Transform()
@@ -66,7 +66,7 @@ class data_processing():
             edge_attr_file = self.edge_attr_file,
             graph_attr_file = self.graph_attr_file,
             weight_file = self.weight_file,
-            _ATOM_TYPE = self._ATOM_TYPE,
+            atom_type = self.atom_type,
             default_node_attr = self.default_node_attr,
             default_edge_attr = self.default_edge_attr,
             node_attr_list = self.node_attr_list,
