@@ -3,11 +3,11 @@ import os
 from typing import Dict
 from functools import partial
 from utils.gen_model import gen_model
-from utils.data_processing import data_processing
+from utils.data_processing import DataProcessing
 from utils.evaluation import Evaluation
 from utils.plot import scatter
 
-def scatterFromModel(model_path: str, param: Dict, DATA: data_processing, output_dir: str):
+def scatterFromModel(model_path: str, param: Dict, DATA: DataProcessing, output_dir: str):
     train_loader = DATA.train_loader
     val_loader = DATA.val_loader
     test_loader = DATA.test_loader

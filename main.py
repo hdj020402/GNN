@@ -5,7 +5,7 @@ import pandas as pd
 from functools import partial
 from typing import Dict
 
-from utils.data_processing import data_processing
+from utils.data_processing import DataProcessing
 from utils.reprocess import reprocess
 from utils.gen_model import gen_model, gen_optimizer, gen_scheduler
 from utils.setup_seed import setup_seed
@@ -36,7 +36,7 @@ def training(param: Dict, ht_param: Dict | None = None, trial: optuna.Trial | No
     epoch_num = param['epoch_num']
 
     dp_start_time = time.perf_counter()
-    DATA = data_processing(param, reprocess = reprocess(param))
+    DATA = DataProcessing(param, reprocess = reprocess(param))
     dataset = DATA.dataset
     mean, std = DATA.mean, DATA.std
     train_loader = DATA.train_loader
@@ -147,7 +147,7 @@ def prediction(param: Dict) -> None:
     error_dict = fp.error_dict
 
     dp_start_time = time.perf_counter()
-    DATA = data_processing(param, reprocess = reprocess(param))
+    DATA = DataProcessing(param, reprocess = reprocess(param))
     dataset = DATA.dataset
     mean, std = DATA.mean, DATA.std
     train_loader = DATA.train_loader
