@@ -21,7 +21,7 @@ def setup_logger(logger_name: str, log_file: str, level=logging.INFO) -> logging
 
     return logger
 
-class file_processing():
+class FileProcessing:
     def __init__(
         self,
         param: Dict,

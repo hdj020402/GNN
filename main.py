@@ -17,13 +17,13 @@ from utils.calc_error import calc_error
 from utils.attr_filter import attr_filter
 from utils.optuna_setup import OptunaSetup
 from utils.train import train
-from utils.file_processing import file_processing
+from utils.file_processing import FileProcessing
 from utils.save_model import SaveModel
 from utils.utils import extract_keys_and_lists
 from utils.gpu_monitor import GPUMonitor
 
 def training(param: Dict, ht_param: Dict | None = None, trial: optuna.Trial | None = None) -> float:
-    fp = file_processing(param, ht_param, trial)
+    fp = FileProcessing(param, ht_param, trial)
     fp.pre_make()
     plot_dir, model_dir, ckpt_dir = fp.plot_dir, fp.model_dir, fp.ckpt_dir
     log_file = fp.log_file
@@ -136,7 +136,7 @@ def training(param: Dict, ht_param: Dict | None = None, trial: optuna.Trial | No
     return criteria_info_dict[param['optim_criteria']]['best_error']
 
 def prediction(param: Dict) -> None:
-    fp = file_processing(param)
+    fp = FileProcessing(param)
     fp.pre_make()
     plot_dir, data_dir, model_dir = fp.plot_dir, fp.data_dir, fp.model_dir
     prediction_logger = fp.prediction_logger
@@ -206,7 +206,7 @@ def prediction(param: Dict) -> None:
 
 def hparam_tuning(param: Dict, ht_param: Dict[str, Dict]) -> None:
     jobtype = param['jobtype']
-    fp = file_processing(param)
+    fp = FileProcessing(param)
     fp.pre_make()
     storage_name = fp.optuna_db
     hptuning_logger = fp.hptuning_logger
