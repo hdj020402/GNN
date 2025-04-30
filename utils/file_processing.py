@@ -51,7 +51,7 @@ class FileProcessing:
             for subtask in self.subtasks:
                 self.error_dict[subtask] = {'Pred': {}}
             os.makedirs(f'Prediction_Recording/{self.jobtype}/{self.TIME}')
-            with open(os.path.join(f'Prediction_Recording/{self.jobtype}/{self.TIME}', 'model_parameters.yml'), 'w', encoding = 'utf-8') as mp:
+            with open(f'Prediction_Recording/{self.jobtype}/{self.TIME}/model_parameters.yml', 'w', encoding = 'utf-8') as mp:
                 yaml.dump(self.param, mp, allow_unicode = True, sort_keys = False)
             self.plot_dir = f'Prediction_Recording/{self.jobtype}/{self.TIME}/Plot'
             os.makedirs(self.plot_dir)
@@ -94,7 +94,7 @@ class FileProcessing:
 
         else:
             os.makedirs(f'Training_Recording/{self.jobtype}/{self.TIME}')
-            with open(os.path.join(f'Training_Recording/{self.jobtype}/{self.TIME}', 'model_parameters.yml'), 'w', encoding = 'utf-8') as mp:
+            with open(f'Training_Recording/{self.jobtype}/{self.TIME}/model_parameters.yml', 'w', encoding = 'utf-8') as mp:
                 yaml.dump(self.param, mp, allow_unicode = True, sort_keys = False)
             self.plot_dir = f'Training_Recording/{self.jobtype}/{self.TIME}/Plot'
             os.makedirs(self.plot_dir)
