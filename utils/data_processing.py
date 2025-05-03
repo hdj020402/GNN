@@ -94,7 +94,7 @@ class DataProcessing():
                 )
 
         elif self.param['split_method'] == 'manual':
-            indices = np.load(self.param['split_path'], allow_pickle=True)
+            indices = np.load(self.param['split_file'], allow_pickle=True)
             train_dataset = Subset(self.dataset, indices[0])
             val_dataset = Subset(self.dataset, indices[1])
             test_dataset = Subset(self.dataset, indices[2])

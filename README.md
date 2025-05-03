@@ -122,7 +122,7 @@ conda create -n <newenv>
         - `batch_size`: integer
         - `num_workers`: integer
         - `split_method`: choose between `random` and `manual`
-        - `SPLIT_file`: the path of a `.npy` file, which uses `np.array` to record the index of data in the order of training dataset, validation dataset and test dataset; if you choose `manual` in `split_method`, you will have to offer a valid path here
+        - `split_file`: the path of a `.npy` file, which uses `np.array` to record the index of data in the order of training dataset, validation dataset and test dataset; if you choose `manual` in `split_method`, you will have to offer a valid path here
         - `train_size`: decimal, the proportion of training dataset; if you choose `random` in `split_method`, you will have to offer a valid proportion here
         - `val_size`: decimal, the proportion of validation dataset; if you choose `random` in `split_method`, you will have to offer a valid proportion here
     - Model
