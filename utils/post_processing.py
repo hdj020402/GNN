@@ -2,7 +2,7 @@ import json, re
 from typing import Dict, List
 from utils.utils import recursive_merge
 
-class read_log():
+class ReadLog():
     def __init__(self, log_file: str, param: Dict) -> None:
         self.log_file = log_file
         self.param = param

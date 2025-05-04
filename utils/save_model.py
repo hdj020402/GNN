@@ -1,4 +1,5 @@
 import torch
+import math
 from typing import Dict, Callable
 
 class SaveModel():
@@ -7,11 +8,17 @@ class SaveModel():
         mean: torch.Tensor,
         std: torch.Tensor,
         param: Dict,
+        model_dir: str,
+        ckpt_dir: str,
         trace_func: Callable
         ) -> None:
+        self.best_val_loss = math.inf
+        self.best_epoch = 0
         self.mean = mean
         self.std = std
         self.param = param
+        self.model_dir = model_dir
+        self.ckpt_dir = ckpt_dir
         self.early_stopping = EarlyStopping(**self.param['early_stopping'], trace_func=trace_func)
 
     def best_model(
@@ -19,36 +26,30 @@ class SaveModel():
         model: torch.nn.Module,
         optimizer: torch.optim.Optimizer,
         epoch: int,
-        info: str,
-        error_dict: Dict,
-        criteria_info_dict: Dict,
-        model_dir: str
+        val_loss: float,
         ) -> Dict:
-        criteria = self.param['optim_criteria']
-        self.val_loss = error_dict['Overall']['Val'][criteria]
-        if self.val_loss < criteria_info_dict[criteria]['best_error']:
-            criteria_info_dict[criteria]['best_error'] = error_dict['Overall']['Val'][criteria]
-            criteria_info_dict[criteria]['best_epoch'] = epoch
-            criteria_info_dict[criteria]['best_epoch_info'] = info
+        self.val_loss = val_loss
+        if val_loss < self.best_val_loss:
+            self.best_val_loss = val_loss
+            self.best_epoch = epoch
             state_dict = {
                 'mean': self.mean,
                 'std': self.std,
                 'model': model.state_dict(),
                 'optimizer': optimizer.state_dict(),
-                'epoch': epoch
+                'epoch': epoch,
+                'val_loss': val_loss
             }
             torch.save(
                 state_dict,
-                f"{model_dir}/best_model_{criteria}_{self.param['time']}.pth"
+                f"{self.model_dir}/best_model_{self.param['time']}.pth"
                 )
-        return criteria_info_dict
 
     def regular_model(
         self,
         model: torch.nn.Module,
         optimizer: torch.optim.Optimizer,
         epoch: int,
-        ckpt_dir: str
         ) -> None:
         if epoch % self.param['model_save_step'] == 0:
             state_dict = {
@@ -56,11 +57,12 @@ class SaveModel():
                 'std': self.std,
                 'model': model.state_dict(),
                 'optimizer': optimizer.state_dict(),
-                'epoch': epoch
+                'epoch': epoch,
+                'val_loss': self.val_loss
             }
             torch.save(
                 state_dict,
-                f"{ckpt_dir}/ckpt_{self.param['time']}_{epoch:0{len(str(self.param['epoch_num']))}d}.pth"
+                f"{self.ckpt_dir}/ckpt_{self.param['time']}_{epoch:0{len(str(self.param['epoch_num']))}d}.pth"
                 )
 
     def check_early_stopping(self):

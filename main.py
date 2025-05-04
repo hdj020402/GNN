@@ -11,7 +11,7 @@ from utils.gen_model import gen_model, gen_optimizer, gen_scheduler
 from utils.setup_seed import setup_seed
 from utils.plot import loss_epoch, scatter
 from utils.plot_model import scatterFromModel
-from utils.post_processing import read_log
+from utils.post_processing import ReadLog
 from utils.evaluation import Evaluation
 from utils.calc_error import calc_error
 from utils.attr_filter import attr_filter
@@ -59,13 +59,14 @@ def training(param: Dict, ht_param: Dict | None = None, trial: optuna.Trial | No
         )
 
     criteria_set = set(param['criteria_list'] + [param['loss_fn']])
-    start_epoch, criteria_info_dict = fp.pre_train(model, optimizer, device)
 
     eval_class = partial(
         Evaluation, device = device, mean = mean[-len_target:], std = std[-len_target:],
         transform = param['target_transform'])
 
-    model_saving = SaveModel(mean, std, param, training_logger.info)
+    model_saving = SaveModel(mean, std, param, model_dir, ckpt_dir, training_logger.info)
+    start_epoch = fp.pre_train(model, optimizer, device, model_saving)
+
     start_time = time.perf_counter()
     for epoch in range(start_epoch, epoch_num+1):
         try:
@@ -83,18 +84,18 @@ def training(param: Dict, ht_param: Dict | None = None, trial: optuna.Trial | No
                         ])
                     for subtask, error in zip(error_dict.keys(), errors):
                         error_dict[subtask][phase][criteria] = round(float(error), 7)
-            scheduler.step(error_dict['Overall']['Val'][param['loss_fn']])
+            val_loss = error_dict['Overall']['Val'][param['loss_fn']]
+            scheduler.step(val_loss)
 
             info = json.dumps({'Epoch': epoch} | error_dict)
 
-            criteria_info_dict = model_saving.best_model(
-                model, optimizer, epoch, info, error_dict, criteria_info_dict, model_dir)
-            model_saving.regular_model(model, optimizer, epoch, ckpt_dir)
-            fp.training_log(epoch, info, criteria_info_dict)
+            model_saving.best_model(model, optimizer, epoch, val_loss)
+            model_saving.regular_model(model, optimizer, epoch)
+            fp.training_log(epoch, info, model_saving.best_val_loss, model_saving.best_epoch)
             torch.cuda.empty_cache()
 
             if trial is not None:
-                trial.report(error_dict['Overall']['Val'][param['optim_criteria']], epoch)
+                trial.report(val_loss, epoch)
                 if trial.should_prune():
                     raise optuna.exceptions.TrialPruned()
 
@@ -106,17 +107,15 @@ def training(param: Dict, ht_param: Dict | None = None, trial: optuna.Trial | No
             break
     end_time = time.perf_counter()
 
-    fp.ending_log(criteria_info_dict, end_time, start_time, epoch)
+    fp.ending_log(end_time, start_time, epoch)
     gpu_monitor.stop()
 
     scatterFromModel(
-        f'{model_dir}/best_model_{param["optim_criteria"]}_{param["time"]}.pth',
-        param,
-        DATA,
-        plot_dir
+        f'{model_dir}/best_model_{param["time"]}.pth',
+        param, DATA, plot_dir
         )
 
-    log_info_dict = read_log(log_file, param).get_performance()
+    log_info_dict = ReadLog(log_file, param).get_performance()
     info_pairs = extract_keys_and_lists(log_info_dict)
     for item, data in info_pairs:
         if item == 'Epoch':
@@ -133,7 +132,7 @@ def training(param: Dict, ht_param: Dict | None = None, trial: optuna.Trial | No
             f'{plot_dir}/{item.split("_")[0]}/{item}-Epoch_{param["time"]}.csv', index=False
         )
 
-    return criteria_info_dict[param['optim_criteria']]['best_error']
+    return model_saving.best_val_loss
 
 def prediction(param: Dict) -> None:
     fp = FileProcessing(param)

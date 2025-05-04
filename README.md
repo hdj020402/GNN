@@ -144,7 +144,7 @@ conda create -n <newenv>
         - `epoch_num`: integer
         - `output_step`: integer, the number of steps between printing output information
         - `model_save_step`: integer, the number of steps between generating checkpoints
-        - `early_stopping`: decide whether to stop training earlier than determined `epoch_num` according to the value of `optim_criteria` of validation set
+        - `early_stopping`: decide whether to stop training earlier than determined `epoch_num` according to the value of `val_loss`
             - `patience`: integer
             - `delta`: float
         - `criteria_list`: list; criteria of estimating the model; you can choose both or just one of them, but `[]` or `null` is invalid
@@ -152,7 +152,6 @@ conda create -n <newenv>
             $$MAE = \frac{1}{n} \sum_{i=1}^{n} |y_i - \hat{y}_i|$$
             - `AARD`: Average Absolute Relative Deviation
             $$AARD(\%) = \frac{100}{n} \sum_{i=1}^{n} \left|\frac{y_i - \hat{y}_i}{y_i}\right|$$
-        - `optim_criteria`: used for tuning hyperparameters; must be one of the criteria in `criteria_list`
     - Prediction
         - `dataset_range`: choose among `train`, `val`, `test` and `whole`
             - `train`, `val` and `test`: in case you want to predict a specific part of the whole dataset, you can select one of the three options; the sub-datasets will be generated according to the `split_method` as mentioned before

@@ -64,7 +64,6 @@ early_stopping:
   patience: 20
   delta: 0
 criteria_list: ['MAE', 'R2', 'AARD']
-optim_criteria: 'MAE'
 
 ### Prediction ###
 dataset_range: test   # train / val / test / whole
