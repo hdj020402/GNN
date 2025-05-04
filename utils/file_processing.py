@@ -167,7 +167,7 @@ class FileProcessing:
         optimizer: torch.optim.Optimizer,
         device: torch.device,
         model_saving: SaveModel | None=None
-        ) -> Tuple[int, Dict]:
+        ) -> int:
         start_epoch = 1
         pretrained_model = self.param['pretrained_model']
         mode = self.param['mode']
@@ -197,7 +197,7 @@ class FileProcessing:
         self.start_epoch = start_epoch
         return start_epoch
 
-    def pred_log(self, info: Dict):
+    def pred_log(self, info: Dict) -> None:
         self.prediction_logger.info(json.dumps(info))
 
     def training_log(
@@ -206,14 +206,14 @@ class FileProcessing:
         info: Dict,
         best_val_loss: float,
         best_epoch: int,
-        ):
+        ) -> None:
         if epoch % self.param['output_step'] == 0:
             self.training_logger.info(
                 f'{info} '
                 f'Best is epoch {best_epoch} with value: {best_val_loss}.'
                 )
 
-    def hptuning_log(self, study: optuna.Study):
+    def hptuning_log(self, study: optuna.Study) -> None:
         self.hptuning_logger.info(f'best value: {study.best_value}')
         self.hptuning_logger.info(f'best params: {study.best_params}')
 
