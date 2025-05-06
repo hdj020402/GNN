@@ -226,10 +226,10 @@ class FileProcessing:
         tot_time = end_time - start_time
         epoch_time = tot_time / (epoch - self.start_epoch + 1)
         self.training_logger.info('Ending...')
-        self.training_logger.info(f"Best_val_loss: {self.best_val_loss}")
-        self.training_logger.info(f"Best_epoch: {self.best_epoch}")
+        self.training_logger.info(f"Best val loss: {self.best_val_loss}")
+        self.training_logger.info(f"Best epoch: {self.best_epoch}")
         hours, minutes, seconds = convert_time(tot_time)
-        self.training_logger.info(f'Total_time: {hours} h {minutes} m {seconds} s')
+        self.training_logger.info(f'Total time: {hours} h {minutes} m {seconds} s')
         hours, minutes, seconds = convert_time(epoch_time)
-        self.training_logger.info(f'Time_per_epoch: {hours} h {minutes} m {seconds} s')
+        self.training_logger.info(f'Time per epoch: {hours} h {minutes} m {seconds} s')
 
