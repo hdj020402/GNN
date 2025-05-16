@@ -7,9 +7,9 @@ from copy import deepcopy
 
 from datasets.graph_dataset import Graph
 from nets.readout_add_graph_feature import GraphPredictionModel, NodePredictionModel
-from utils.time import convert_time
 from utils.save_model import SaveModel
 from utils.post_processing import ReadLog
+from utils.utils import Timer
 
 def setup_logger(logger_name: str, log_file: str, level=logging.INFO) -> logging.Logger:
     logger = logging.getLogger(logger_name)
@@ -122,11 +122,9 @@ class FileProcessing:
         mean: float,
         std: float,
         model: GraphPredictionModel | NodePredictionModel,
-        end_time: float,
-        start_time: float,
+        timer: Timer
         ) -> None:
-        dp_time = end_time - start_time
-        hours, minutes, seconds = convert_time(dp_time)
+        days, hours, minutes, seconds = timer.get_tot_time()
         if self.param['mode'] == 'prediction':
             self.prediction_logger.info(f"data_path: {os.path.abspath(self.param['path'])}")
             self.prediction_logger.info(json.dumps(self.param))
@@ -135,7 +133,7 @@ class FileProcessing:
             self.prediction_logger.info(f"batch size: {pred_loader.batch_size}")
             self.prediction_logger.info(f"mean: {mean}, std: {std}")
             self.prediction_logger.info(f"Model:\n{model}")
-            self.prediction_logger.info(f"Data processing time: {hours} h {minutes} m {seconds} s")
+            self.prediction_logger.info(f"Data processing time: {days} d {hours} h {minutes} m {seconds} s")
             self.prediction_logger.info("Begin predicting...")
         else:
             self.training_logger.info(f"data_path: {os.path.abspath(self.param['path'])}")
@@ -147,7 +145,7 @@ class FileProcessing:
             self.training_logger.info(f"batch size: {train_loader.batch_size}")
             self.training_logger.info(f"mean: {mean}, std: {std}")
             self.training_logger.info(f"Model:\n{model}")
-            self.training_logger.info(f"Data processing time: {hours} h {minutes} m {seconds} s")
+            self.training_logger.info(f"Data processing time: {days} d {hours} h {minutes} m {seconds} s")
             self.training_logger.info("Begin training...")
 
     def load_model(
@@ -207,6 +205,8 @@ class FileProcessing:
         best_val_loss: float,
         best_epoch: int,
         ) -> None:
+        self.best_val_loss = best_val_loss
+        self.best_epoch = best_epoch
         if epoch % self.param['output_step'] == 0:
             self.training_logger.info(
                 f'{info} '
@@ -219,17 +219,14 @@ class FileProcessing:
 
     def ending_log(
         self,
-        end_time: float,
-        start_time: float,
+        timer: Timer,
         epoch: int
         ) -> None:
-        tot_time = end_time - start_time
-        epoch_time = tot_time / (epoch - self.start_epoch + 1)
         self.training_logger.info('Ending...')
         self.training_logger.info(f"Best val loss: {self.best_val_loss}")
         self.training_logger.info(f"Best epoch: {self.best_epoch}")
-        hours, minutes, seconds = convert_time(tot_time)
-        self.training_logger.info(f'Total time: {hours} h {minutes} m {seconds} s')
-        hours, minutes, seconds = convert_time(epoch_time)
-        self.training_logger.info(f'Time per epoch: {hours} h {minutes} m {seconds} s')
+        days, hours, minutes, seconds = timer.get_tot_time()
+        self.training_logger.info(f'Total time: {days} d {hours} h {minutes} m {seconds} s')
+        days, hours, minutes, seconds = timer.get_average_time(epoch - self.start_epoch + 1)
+        self.training_logger.info(f'Time per epoch: {days} d {hours} h {minutes} m {seconds} s')
 

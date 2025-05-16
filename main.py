@@ -1,6 +1,5 @@
-import os, yaml, time, json
-import torch
-import optuna
+import os, time, yaml, json
+import torch, optuna
 import pandas as pd
 from functools import partial
 from typing import Dict
@@ -19,7 +18,7 @@ from utils.optuna_setup import OptunaSetup
 from utils.train import train
 from utils.file_processing import FileProcessing
 from utils.save_model import SaveModel
-from utils.utils import extract_keys_and_lists
+from utils.utils import extract_keys_and_lists, Timer
 from utils.gpu_monitor import GPUMonitor
 
 def training(param: Dict, ht_param: Dict | None = None, trial: optuna.Trial | None = None) -> float:
@@ -35,14 +34,15 @@ def training(param: Dict, ht_param: Dict | None = None, trial: optuna.Trial | No
 
     epoch_num = param['epoch_num']
 
-    dp_start_time = time.perf_counter()
+    dp_timer = Timer()
+    dp_timer.start()
     DATA = DataProcessing(param, reprocess = reprocess(param))
     dataset = DATA.dataset
     mean, std = DATA.mean, DATA.std
     train_loader = DATA.train_loader
     val_loader = DATA.val_loader
     test_loader = DATA.test_loader
-    dp_end_time = time.perf_counter()
+    dp_timer.end()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     # if device == torch.device('cuda'):
@@ -54,8 +54,7 @@ def training(param: Dict, ht_param: Dict | None = None, trial: optuna.Trial | No
     len_target = len(param['target_list'])
     fp.basic_info_log(
         dataset, train_loader, val_loader, test_loader, None,
-        mean[-len_target:], std[-len_target:],
-        model, dp_end_time, dp_start_time
+        mean[-len_target:], std[-len_target:], model, dp_timer
         )
 
     criteria_set = set(param['criteria_list'] + [param['loss_fn']])
@@ -67,7 +66,8 @@ def training(param: Dict, ht_param: Dict | None = None, trial: optuna.Trial | No
     model_saving = SaveModel(mean, std, param, model_dir, ckpt_dir, training_logger.info)
     start_epoch = fp.pre_train(model, optimizer, device, model_saving)
 
-    start_time = time.perf_counter()
+    timer = Timer()
+    timer.start()
     for epoch in range(start_epoch, epoch_num+1):
         try:
             lr = scheduler.optimizer.param_groups[0]['lr']
@@ -105,9 +105,9 @@ def training(param: Dict, ht_param: Dict | None = None, trial: optuna.Trial | No
         except torch.cuda.OutOfMemoryError as e:
             training_logger.error(e)
             break
-    end_time = time.perf_counter()
+    timer.end()
 
-    fp.ending_log(end_time, start_time, epoch)
+    fp.ending_log(timer, epoch)
     gpu_monitor.stop()
 
     scatterFromModel(
@@ -145,7 +145,8 @@ def prediction(param: Dict) -> None:
     subtasks = fp.subtasks
     error_dict = fp.error_dict
 
-    dp_start_time = time.perf_counter()
+    dp_timer = Timer()
+    dp_timer.start()
     DATA = DataProcessing(param, reprocess = reprocess(param))
     dataset = DATA.dataset
     mean, std = DATA.mean, DATA.std
@@ -153,7 +154,7 @@ def prediction(param: Dict) -> None:
     val_loader = DATA.val_loader
     test_loader = DATA.test_loader
     pred_loader = DATA.pred_loader
-    dp_end_time = time.perf_counter()
+    dp_timer.end()
 
     loader_dict = {'train': train_loader, 'val': val_loader, 'test': test_loader, 'whole': pred_loader}
     try:
@@ -169,8 +170,7 @@ def prediction(param: Dict) -> None:
     len_target = len(param['target_list'])
     fp.basic_info_log(
         dataset, None, None, None, loader,
-        mean[-len_target:], std[-len_target:],
-        model, dp_end_time, dp_start_time
+        mean[-len_target:], std[-len_target:], model, dp_timer
         )
 
     criteria_list = param['criteria_list']
