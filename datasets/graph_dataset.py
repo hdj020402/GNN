@@ -175,7 +175,7 @@ class Graph(InMemoryDataset):
             graph_attr = torch.empty(len(target), 1, 0)
 
         if self.weight_file is None:
-            weights = [1] * len(suppl)
+            weights = torch.ones(target.shape)
         else:
             with open(self.weight_file) as wf:
                 weights = json.load(wf)
