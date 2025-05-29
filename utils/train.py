@@ -1,24 +1,29 @@
 from typing import Union, Literal
 from torch_geometric.loader import DataLoader
 import torch
+import torch.nn.functional as F
 from torch.optim import AdamW, Adam, SGD
 
 def weighted_loss(
     pred: torch.Tensor,
     target: torch.Tensor,
     weight: torch.Tensor,
-    loss_type: Literal['MAE', 'MSE']
+    loss_type: Literal['MAE', 'MSE', 'Cosine']
     ) -> torch.Tensor:
     if loss_type == 'MAE':
         return (weight * torch.abs(pred - target)).mean()
     elif loss_type == 'MSE':
         return (weight * (pred - target) ** 2).mean()
+    elif loss_type == 'Cosine':
+        cosine_sim = F.cosine_similarity(pred, target, dim=1)
+        loss = 1 - cosine_sim
+        return (weight * loss).mean()
 
 def train(
     model: torch.nn.Module,
     train_loader: DataLoader,
     optimizer: Union[AdamW, SGD, Adam],
-    loss_fn: Literal['MAE', 'MSE'],
+    loss_fn: Literal['MAE', 'MSE', 'Cosine'],
     device: torch.device,
     accumulation_steps: int = 1
     ) -> float:
