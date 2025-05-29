@@ -56,7 +56,7 @@ class NodePredictionModel(torch.nn.Module):
         self.gru = GRU(dim_conv, dim_conv)
 
         # 修改了线性层以适应节点级别的预测任务
-        self.lin1 = torch.nn.Linear(dim_conv, dim_conv)
+        self.lin1 = torch.nn.Linear(dim_conv + dataset.num_graph_features, dim_conv)
         self.lin2 = torch.nn.Linear(dim_conv, dim_output)
         self.mp_times = mp_times
 
