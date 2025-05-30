@@ -8,7 +8,7 @@ from torch_geometric.utils import remove_self_loops, to_networkx
 
 
 class GraphPredictionModel(torch.nn.Module):
-    def __init__(self, dataset, dim_linear, dim_conv, vector_dim, num_tasks, processing_steps, mp_times):
+    def __init__(self, dataset, dim_linear, dim_conv, num_tasks, processing_steps, mp_times):
         super().__init__()
         self.lin0 = torch.nn.Linear(dataset.num_features, dim_conv)
 
@@ -22,6 +22,7 @@ class GraphPredictionModel(torch.nn.Module):
         # Set2Set是一种将集合到集合用LSTM时序模型进行映射的聚合方式，注意out_channels = 2 * in_channels
         self.set2set = Set2Set(dim_conv, processing_steps = processing_steps)
         self.lin1 = torch.nn.Linear(2 * dim_conv+dataset.num_graph_features, dim_conv)
+        vector_dim = dataset.data.y.shape[1]
         self.lin2 = torch.nn.Linear(dim_conv, vector_dim * num_tasks)
         self.mp_times = mp_times
         self.vector_dim = vector_dim
