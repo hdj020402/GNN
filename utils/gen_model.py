@@ -5,7 +5,7 @@ from nets.readout_add_graph_feature import GraphPredictionModel, NodePredictionM
 
 def gen_model(param: Dict, dataset, ) -> GraphPredictionModel | NodePredictionModel:
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    if param['target_type'] == 'graph':
+    if param['target_type'] in ['graph', 'vector']:
         net = GraphPredictionModel(
             dataset, param['dim_linear'],
             param['dim_conv'],
