@@ -25,6 +25,7 @@ class Graph(InMemoryDataset):
                  node_attr_file: str=None,
                  edge_attr_file: str=None,
                  graph_attr_file: str=None,
+                 vector_file: str=None,
                  weight_file: str=None,
                  atom_type: List[str]=None,
                  default_node_attr: Dict=None,
@@ -66,6 +67,7 @@ class Graph(InMemoryDataset):
         self.node_attr_file = node_attr_file
         self.edge_attr_file = edge_attr_file
         self.graph_attr_file = graph_attr_file
+        self.vector_file  = vector_file
         self.weight_file = weight_file
         self.atom_type = atom_type
         self.default_node_attr = default_node_attr
@@ -141,13 +143,19 @@ class Graph(InMemoryDataset):
         # read node & edge attribute
         node_attr_dict = read_attr(self.node_attr_file, 'node', len(suppl))
         edge_attr_dict = read_attr(self.edge_attr_file, 'edge', len(suppl))
+        vector_dict = read_attr(self.vector_file, 'vector', len(suppl))
 
         # extract target and graph_attr from csv
         if self.target_type == 'graph':
             target = torch.tensor(
                 np.array(database.loc[:, self.target_list]),
                 dtype=torch.float
-                ).reshape(-1, len(self.target_list)).unsqueeze(1)
+                ).reshape(-1, 1, len(self.target_list)).unsqueeze(1)
+        elif self.target_type == 'vector':
+            target = torch.tensor(
+                np.array([vector_dict[key] for key in self.target_list]),
+                dtype=torch.float
+            ).reshape(len(suppl), -1, len(self.target_list)).unsqueeze(1)
         elif self.target_type == 'node':
             target: List[torch.Tensor] = []
             node_target_list = [node_attr_dict[key] for key in self.target_list]
@@ -175,7 +183,10 @@ class Graph(InMemoryDataset):
             graph_attr = torch.empty(len(target), 1, 0)
 
         if self.weight_file is None:
-            weights = torch.ones(target.shape)
+            if self.target_type == 'graph':
+                weights = torch.ones_like(target)
+            else:
+                weights = [torch.ones_like(t) for t in target]
         else:
             with open(self.weight_file) as wf:
                 weights = json.load(wf)

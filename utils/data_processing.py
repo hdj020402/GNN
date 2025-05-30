@@ -41,6 +41,7 @@ class DataProcessing():
             node_attr_file = self.param['node_attr_file'],
             edge_attr_file = self.param['edge_attr_file'],
             graph_attr_file = self.param['graph_attr_file'],
+            vector_file=self.param['vector_file'],
             weight_file = self.param['weight_file'],
             atom_type = self.param['atom_type'],
             default_node_attr = self.param['default_node_attr'],

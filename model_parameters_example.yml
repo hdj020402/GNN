@@ -11,6 +11,7 @@ sdf_file: database/viscosity/merged_mol.sdf
 node_attr_file: database/viscosity/DFT/node_attr.json
 edge_attr_file: null
 graph_attr_file: database/viscosity/DFT/attr_train.csv
+vector_file: null
 weight_file: test.json
 atom_type: ['H', 'C', 'N', 'O', 'F']
 default_node_attr:
