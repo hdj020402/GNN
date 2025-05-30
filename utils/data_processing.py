@@ -163,7 +163,8 @@ class DataProcessing():
             # mean: torch.Tensor = state_dict['mean']
             # std: torch.Tensor = state_dict['std']
         else:
-            train_dataset = CustomSubset(self.dataset, self.train_dataset.indices)
+            # train_dataset = CustomSubset(self.dataset, self.train_dataset.indices)
+            train_dataset = self.dataset[self.train_dataset.indices]
             norm_dict = {}
             for attr in ['x', 'edge_attr', 'y', 'graph_attr', ]:
                 data: torch.Tensor = getattr(train_dataset, attr)
