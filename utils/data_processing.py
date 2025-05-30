@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 import torch_geometric.transforms as T
 import numpy as np
 import os, yaml
@@ -18,7 +19,7 @@ class DataProcessing():
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.dataset = self.gen_dataset()
         self.train_dataset, self.val_dataset, self.test_dataset, self.pred_dataset = self.split_dataset()
-        self.mean, self.std = self.get_mean_std()
+        self.norm_dict= self.get_mean_std()
         self.normalization()
         self.train_dataset, self.val_dataset, self.test_dataset, self.pred_dataset = self.split_dataset()
         self.train_loader, self.val_loader, self.test_loader, self.pred_loader = self.gen_loader()
@@ -138,32 +139,49 @@ class DataProcessing():
         return train_loader, val_loader, test_loader, pred_loader
 
     def normalization(self) -> None:
-        if self.param['graph_attr_list']:
-            data_scaled = (torch.cat([self.dataset.graph_attr, self.dataset.y], dim = 1) - self.mean) / self.std
-            self.dataset.data.graph_attr = data_scaled[:, 0:len(self.param['graph_attr_list'])]
-            self.dataset.data.y = data_scaled[:, len(self.param['graph_attr_list']):len(self.param['graph_attr_list']) + len(self.param['target_list'])]
+        for attr in ['x', 'edge_attr', 'graph_attr', ]:
+            mean, std = self.norm_dict[attr]
+            scaled_attr = (getattr(self.dataset, attr) - mean) / std
+            setattr(self.dataset.data, attr, scaled_attr)
+        if self.param['target_type'] == 'vector':
+            self.dataset.data.y = F.normalize(self.dataset.y, p=2, dim=1)
         else:
-            self.dataset.data.y = (self.dataset.y - self.mean) / self.std
+            mean, std = self.norm_dict['y']
+            self.dataset.data.y = (self.dataset.y - mean) / std
+        # if self.param['graph_attr_list']:
+        #     data_scaled = (torch.cat([self.dataset.graph_attr, self.dataset.y], dim = 1) - self.mean) / self.std
+        #     self.dataset.data.graph_attr = data_scaled[:, 0:len(self.param['graph_attr_list'])]
+        #     self.dataset.data.y = data_scaled[:, len(self.param['graph_attr_list']):len(self.param['graph_attr_list']) + len(self.param['target_list'])]
+        # else:
+        #     self.dataset.data.y = (self.dataset.y - self.mean) / self.std
 
     def get_mean_std(self) -> tuple[torch.Tensor, torch.Tensor]:
         if self.param['mode'] == 'prediction':
             pretrained_model = self.param['pretrained_model']
             state_dict: Dict = torch.load(pretrained_model, map_location=torch.device('cpu'))
-            mean: torch.Tensor = state_dict['mean']
-            std: torch.Tensor = state_dict['std']
+            norm_dict = state_dict['norm']
+            # mean: torch.Tensor = state_dict['mean']
+            # std: torch.Tensor = state_dict['std']
         else:
             train_dataset = CustomSubset(self.dataset, self.train_dataset.indices)
-            if self.param['graph_attr_list']:
-                combined_data = torch.cat(
-                    [
-                        train_dataset.graph_attr,
-                        train_dataset.y
-                    ],
-                    dim=1
-                )
-                mean = combined_data.mean(dim=0)
-                std = combined_data.std(dim=0, unbiased=False)
-            else:
-                mean = train_dataset.y.mean(dim=0)
-                std = train_dataset.y.std(dim=0, unbiased=False)
-        return mean, std
+            norm_dict = {}
+            for attr in ['x', 'edge_attr', 'y', 'graph_attr', ]:
+                data: torch.Tensor = getattr(train_dataset, attr)
+                mean = data.view(-1, data.shape[-1]).mean(dim=0)
+                std = data.view(-1, data.shape[-1]).std(dim=0)
+                norm_dict[attr] = (mean, std)
+            # mean_y = train_dataset.y.view(
+            #     -1, train_dataset.y.shape[-1]).mean(dim=0)
+            # std_y = train_dataset.y.view(
+            #     -1, train_dataset.y.shape[-1]).std(dim=0, unbiased=False)
+            # if self.param['graph_attr_list']:
+            #     mean_graph = train_dataset.graph_attr.view(
+            #         -1, train_dataset.graph_attr.shape[-1]).mean(dim=0)
+            #     std_graph = train_dataset.graph_attr.view(
+            #         -1, train_dataset.graph_attr.shape[-1]).std(dim=0, unbiased=False)
+            #     mean = torch.cat([mean_graph, mean_y])
+            #     std = torch.cat([std_graph, std_y])
+            # else:
+            #     mean = mean_y
+            #     std = std_y
+        return norm_dict
