@@ -31,7 +31,7 @@ graph_attr_list: [energy]
 node_attr_filter: []   # remove one hot
 edge_attr_filter: []   # no filter
 pos: True
-target_type: graph   # graph / node / edge
+target_type: graph   # graph / node / edge / vector
 target_list: ['viscosity']
 target_transform: LN   # LN / LG / E^-x / null
 batch_size: 32
@@ -47,7 +47,7 @@ dim_linear: 128
 dim_conv: 128
 processing_steps: 3
 mp_times: 3
-loss_fn: MAE   # MAE / MSE
+loss_fn: MAE   # MAE / MSE / Cosine
 optimizer: Adam
 lr: 0.01
 scheduler:
