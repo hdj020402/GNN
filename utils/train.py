@@ -19,6 +19,20 @@ def weighted_loss(
         loss = 1 - cosine_sim
         return (weight * loss).mean()
 
+def unweighted_loss(
+    pred: torch.Tensor,
+    target: torch.Tensor,
+    loss_type: Literal['MAE', 'MSE', 'Cosine']
+    ) -> torch.Tensor:
+    if loss_type == 'MAE':
+        return torch.abs(pred - target).mean()
+    elif loss_type == 'MSE':
+        return ((pred - target) ** 2).mean()
+    elif loss_type == 'Cosine':
+        cosine_sim = F.cosine_similarity(pred, target, dim=1)
+        loss = 1 - cosine_sim
+        return loss.mean()
+
 def train(
     model: torch.nn.Module,
     train_loader: DataLoader,
@@ -47,3 +61,21 @@ def train(
         optimizer.zero_grad()
 
     return loss_all / len(train_loader.dataset)
+
+@torch.no_grad()
+def validate(
+    model: torch.nn.Module,
+    loader: DataLoader,
+    loss_fn: Literal['MAE', 'MSE', 'Cosine'],
+    device: torch.device,
+    ) -> float:
+    model.eval()
+    loss_all = 0
+
+    for data in loader:
+        data = data.to(device)
+        output = model(data)
+        loss = unweighted_loss(output, data.y, loss_fn)
+        loss_all += loss.item() * data.num_graphs
+    
+    return loss_all / len(loader.dataset)
