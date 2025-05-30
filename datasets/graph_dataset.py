@@ -160,13 +160,13 @@ class Graph(InMemoryDataset):
             graph_attr = torch.tensor(
                 np.array(database.loc[:, self.graph_attr_list]),
                 dtype=torch.float
-                ).reshape(-1, len(self.graph_attr_list)).unsqueeze(1)
+                ).reshape(-1, 1, len(self.graph_attr_list)).unsqueeze(1)
         else:
-            graph_attr = torch.empty(len(target), 1, 0)
+            graph_attr = torch.empty(len(target), 1, 1, 0)
 
         if self.weight_file is None:
-            if self.target_type == 'graph':
-                weights = torch.ones_like(target)
+            if self.target_type in ['graph', 'vector']:
+                weights = torch.ones([len(suppl), 1, len(self.target_list)])
             else:
                 weights = [torch.ones_like(t) for t in target]
         else:
