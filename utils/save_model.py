@@ -5,8 +5,7 @@ from typing import Dict, Callable
 class SaveModel():
     def __init__(
         self,
-        mean: torch.Tensor,
-        std: torch.Tensor,
+        norm_dict: dict[str, tuple[torch.Tensor, torch.Tensor]],
         param: Dict,
         model_dir: str,
         ckpt_dir: str,
@@ -14,8 +13,7 @@ class SaveModel():
         ) -> None:
         self.best_val_loss = math.inf
         self.best_epoch = 0
-        self.mean = mean
-        self.std = std
+        self.norm_dict = norm_dict
         self.param = param
         self.model_dir = model_dir
         self.ckpt_dir = ckpt_dir
@@ -33,8 +31,7 @@ class SaveModel():
             self.best_val_loss = val_loss
             self.best_epoch = epoch
             state_dict = {
-                'mean': self.mean,
-                'std': self.std,
+                'norm': self.norm_dict,
                 'model': model.state_dict(),
                 'optimizer': optimizer.state_dict(),
                 'epoch': epoch,
@@ -53,8 +50,7 @@ class SaveModel():
         ) -> None:
         if epoch % self.param['model_save_step'] == 0:
             state_dict = {
-                'mean': self.mean,
-                'std': self.std,
+                'norm': self.norm_dict,
                 'model': model.state_dict(),
                 'optimizer': optimizer.state_dict(),
                 'epoch': epoch,
