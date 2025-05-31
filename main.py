@@ -15,7 +15,7 @@ from utils.evaluation import Evaluation
 from utils.calc_error import calc_error
 from utils.attr_filter import attr_filter
 from utils.optuna_setup import OptunaSetup
-from utils.train import train
+from utils.train import train, validate
 from utils.file_processing import FileProcessing
 from utils.save_model import SaveModel
 from utils.utils import extract_keys_and_lists, Timer
@@ -38,7 +38,7 @@ def training(param: Dict, ht_param: Dict | None = None, trial: optuna.Trial | No
     dp_timer.start()
     DATA = DataProcessing(param, reprocess = reprocess(param))
     dataset = DATA.dataset
-    mean, std = DATA.mean, DATA.std
+    norm_dict = DATA.norm_dict
     train_loader = DATA.train_loader
     val_loader = DATA.val_loader
     test_loader = DATA.test_loader
@@ -51,19 +51,18 @@ def training(param: Dict, ht_param: Dict | None = None, trial: optuna.Trial | No
     optimizer = gen_optimizer(param, model)
     scheduler = gen_scheduler(param, optimizer)
 
-    len_target = len(param['target_list'])
     fp.basic_info_log(
         dataset, train_loader, val_loader, test_loader, None,
-        mean[-len_target:], std[-len_target:], model, dp_timer
+        norm_dict, model, dp_timer
         )
 
     criteria_set = set(param['criteria_list'] + [param['loss_fn']])
 
     eval_class = partial(
-        Evaluation, device = device, mean = mean[-len_target:], std = std[-len_target:],
+        Evaluation, param = param, device = device, norm_dict=norm_dict,
         transform = param['target_transform'])
 
-    model_saving = SaveModel(mean, std, param, model_dir, ckpt_dir, training_logger.info)
+    model_saving = SaveModel(norm_dict, param, model_dir, ckpt_dir, training_logger.info)
     start_epoch = fp.pre_train(model, optimizer, device, model_saving)
 
     timer = Timer()
@@ -72,6 +71,7 @@ def training(param: Dict, ht_param: Dict | None = None, trial: optuna.Trial | No
         try:
             lr = scheduler.optimizer.param_groups[0]['lr']
             loss = train(model, train_loader, optimizer, param['loss_fn'], device, param['accumulation_step'])
+            val_loss = validate(model, val_loader, param['loss_fn'], device)
             error_dict['Overall']['LR'] = round(lr, 7)
             error_dict['Overall']['Loss'] = round(loss, 7)
             for phase, loader in zip(['Train', 'Val', 'Test'], [train_loader, val_loader, test_loader]):
@@ -80,11 +80,10 @@ def training(param: Dict, ht_param: Dict | None = None, trial: optuna.Trial | No
                 for criteria in criteria_set:
                     errors = torch.cat([
                         getattr(calc_error(pred, target), criteria)(dim=None).unsqueeze(0),
-                        getattr(calc_error(pred, target), criteria)(dim=0)
+                        getattr(calc_error(pred, target), criteria)(dim=0).view(-1)
                         ])
                     for subtask, error in zip(error_dict.keys(), errors):
                         error_dict[subtask][phase][criteria] = round(float(error), 7)
-            val_loss = error_dict['Overall']['Val'][param['loss_fn']]
             scheduler.step(val_loss)
 
             info = json.dumps({'Epoch': epoch} | error_dict)
