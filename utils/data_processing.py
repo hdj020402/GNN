@@ -19,19 +19,20 @@ class DataProcessing():
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.dataset = self.gen_dataset()
         self.train_dataset, self.val_dataset, self.test_dataset, self.pred_dataset = self.split_dataset()
-        self.norm_dict= self.get_mean_std()
+        self.norm_dict = self.get_mean_std()
         self.normalization()
         self.train_dataset, self.val_dataset, self.test_dataset, self.pred_dataset = self.split_dataset()
         self.train_loader, self.val_loader, self.test_loader, self.pred_loader = self.gen_loader()
 
     def Transform(self) -> T.Compose:
-        transforms = [CompleteWithDistanceFilter(distance_threshold=self.param['default_edge_attr']['bond_length']['threshold'])]
-        for length_type in self.param['default_edge_attr']['bond_length']['power']:
-            length_type: str
-            power = float(length_type.split('^')[1])
-            transforms.append(PowerDistance(
-                norm=False, power=power, distance_threshold=self.param['default_edge_attr']['bond_length']['threshold']))
-        transform = T.Compose(transforms)
+        # transforms = [CompleteWithDistanceFilter(distance_threshold=self.param['default_edge_attr']['bond_length']['threshold'])]
+        # for length_type in self.param['default_edge_attr']['bond_length']['power']:
+        #     length_type: str
+        #     power = float(length_type.split('^')[1])
+        #     transforms.append(PowerDistance(
+        #         norm=False, power=power, distance_threshold=self.param['default_edge_attr']['bond_length']['threshold']))
+        # transform = T.Compose(transforms)
+        transform = None
         return transform
 
     def gen_dataset(self) -> Graph:
@@ -47,6 +48,8 @@ class DataProcessing():
             atom_type = self.param['atom_type'],
             default_node_attr = self.param['default_node_attr'],
             default_edge_attr = self.param['default_edge_attr'],
+            dist_thresh = self.param['default_edge_attr']['bond_length']['threshold'],
+            power_list = self.param['default_edge_attr']['bond_length']['power'],
             node_attr_list = self.param['node_attr_list'],
             edge_attr_list = self.param['edge_attr_list'],
             graph_attr_list = self.param['graph_attr_list'],
@@ -176,8 +179,13 @@ class DataProcessing():
             for attr in ['x', 'edge_attr', 'y', 'graph_attr', ]:
                 data: torch.Tensor = getattr(train_dataset, attr)
                 try:
-                    mean = data.view(-1, data.shape[-1]).mean(dim=0)
-                    std = data.view(-1, data.shape[-1]).std(dim=0)
+                    data = data.view(-1, data.shape[-1])
+                    mean = data.mean(dim=0)
+                    std = data.std(dim=0)
+                    for i in range(data.shape[-1]):
+                        if ((data[:, i] == 0) | (data[:, i] == 1)).all():
+                            mean[i] = 0.0
+                            std[i] = 1.0
                     norm_dict[attr] = (mean, std)
                 except RuntimeError:
                     pass

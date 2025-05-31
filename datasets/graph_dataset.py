@@ -11,7 +11,7 @@ from rdkit.Chem.rdchem import BondType as BT
 RDLogger.DisableLog('rdApp.*')
 
 from datasets.attr_generator import get_adj_mat, get_edge_attr, get_node_attr
-from datasets.utils import read_attr
+from datasets.utils import read_attr, complete_with_dist_filter, power_dist
 
 # definition atom and bond type for one hot repr
 _BOND_TYPE = {BT.SINGLE: 0, BT.DOUBLE: 1, BT.TRIPLE: 2, BT.AROMATIC: 3}
@@ -30,6 +30,8 @@ class Graph(InMemoryDataset):
                  atom_type: List[str]=None,
                  default_node_attr: Dict=None,
                  default_edge_attr: Dict=None,
+                 dist_thresh: float | None=None,
+                 power_list: List | None=None,
                  node_attr_list: List[str]=[],
                  edge_attr_list: List[str]=[],
                  graph_attr_list: List[str]=[],
@@ -72,6 +74,8 @@ class Graph(InMemoryDataset):
         self.atom_type = atom_type
         self.default_node_attr = default_node_attr
         self.default_edge_attr = default_edge_attr
+        self.dist_thresh = dist_thresh
+        self.power_list = power_list
         self.node_attr_list = node_attr_list
         self.edge_attr_list = edge_attr_list
         self.graph_attr_list = graph_attr_list
@@ -218,6 +222,11 @@ class Graph(InMemoryDataset):
             data = Data(x=x, pos=pos, edge_index=edge_index,
                         edge_attr=edge_attr, y=y, graph_attr=g_a, weight = weight,
                         name=name, idx=i)
+            data = complete_with_dist_filter(data, self.dist_thresh)
+            for length_type in self.power_list:
+                length_type: str
+                power = float(length_type.split('^')[1])
+                data = power_dist(data, cat=True, power=power, distance_threshold=self.dist_thresh)
             # pre filter and pre transform
             if self.pre_filter is not None and not self.pre_filter(data):
                 continue
