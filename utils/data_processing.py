@@ -139,9 +139,17 @@ class DataProcessing():
         return train_loader, val_loader, test_loader, pred_loader
 
     def normalization(self) -> None:
-        for attr in ['x', 'edge_attr', 'graph_attr', ]:
-            mean, std = self.norm_dict[attr]
-            scaled_attr = (getattr(self.dataset, attr) - mean) / std
+        for attr, norm_info in self.norm_dict.items():
+            if attr == 'y':
+                continue
+            mean, std = norm_info
+            data = getattr(self.dataset.data, attr)
+            scaled_attr = torch.zeros_like(data)
+            for i in range(data.shape[1]):
+                if std[i] == 0:
+                    scaled_attr[:, i] = 0.0
+                else:
+                    scaled_attr[:, i] = (data[:, i] - mean[i]) / std[i]
             setattr(self.dataset.data, attr, scaled_attr)
         if self.param['target_type'] == 'vector':
             self.dataset.data.y = F.normalize(self.dataset.y, p=2, dim=1)
@@ -155,7 +163,7 @@ class DataProcessing():
         # else:
         #     self.dataset.data.y = (self.dataset.y - self.mean) / self.std
 
-    def get_mean_std(self) -> tuple[torch.Tensor, torch.Tensor]:
+    def get_mean_std(self) -> dict[str, tuple[torch.Tensor, torch.Tensor]]:
         if self.param['mode'] == 'prediction':
             pretrained_model = self.param['pretrained_model']
             state_dict: Dict = torch.load(pretrained_model, map_location=torch.device('cpu'))
@@ -163,14 +171,16 @@ class DataProcessing():
             # mean: torch.Tensor = state_dict['mean']
             # std: torch.Tensor = state_dict['std']
         else:
-            # train_dataset = CustomSubset(self.dataset, self.train_dataset.indices)
             train_dataset = self.dataset[self.train_dataset.indices]
             norm_dict = {}
             for attr in ['x', 'edge_attr', 'y', 'graph_attr', ]:
                 data: torch.Tensor = getattr(train_dataset, attr)
-                mean = data.view(-1, data.shape[-1]).mean(dim=0)
-                std = data.view(-1, data.shape[-1]).std(dim=0)
-                norm_dict[attr] = (mean, std)
+                try:
+                    mean = data.view(-1, data.shape[-1]).mean(dim=0)
+                    std = data.view(-1, data.shape[-1]).std(dim=0)
+                    norm_dict[attr] = (mean, std)
+                except RuntimeError:
+                    pass
             # mean_y = train_dataset.y.view(
             #     -1, train_dataset.y.shape[-1]).mean(dim=0)
             # std_y = train_dataset.y.view(
