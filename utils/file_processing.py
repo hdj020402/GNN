@@ -119,8 +119,7 @@ class FileProcessing:
         val_loader: DataLoader,
         test_loader: DataLoader,
         pred_loader: DataLoader,
-        mean: float,
-        std: float,
+        norm_dict: dict[str, tuple[torch.Tensor, torch.Tensor]],
         model: GraphPredictionModel | NodePredictionModel,
         timer: Timer
         ) -> None:
@@ -131,7 +130,7 @@ class FileProcessing:
             self.prediction_logger.info(f"dataset: {str(dataset.data)}")
             self.prediction_logger.info(f"size of pred set: {len(pred_loader.dataset)}")
             self.prediction_logger.info(f"batch size: {pred_loader.batch_size}")
-            self.prediction_logger.info(f"mean: {mean}, std: {std}")
+            self.prediction_logger.info(f"norm info: {norm_dict}")
             self.prediction_logger.info(f"Model:\n{model}")
             self.prediction_logger.info(f"Data processing time: {days} d {hours} h {minutes} m {seconds} s")
             self.prediction_logger.info("Begin predicting...")
@@ -143,7 +142,7 @@ class FileProcessing:
             self.training_logger.info(f"size of val set: {len(val_loader.dataset)}")
             self.training_logger.info(f"size of training set: {len(train_loader.dataset)}")
             self.training_logger.info(f"batch size: {train_loader.batch_size}")
-            self.training_logger.info(f"mean: {mean}, std: {std}")
+            self.training_logger.info(f"norm info: {norm_dict}")
             self.training_logger.info(f"Model:\n{model}")
             self.training_logger.info(f"Data processing time: {days} d {hours} h {minutes} m {seconds} s")
             self.training_logger.info("Begin training...")
