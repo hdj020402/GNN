@@ -1,5 +1,5 @@
 import torch
-from typing import Dict, Callable
+import torch.nn.functional as F
 
 class calc_error():
     def __init__(self, pred: torch.Tensor, target: torch.Tensor) -> None:
@@ -32,3 +32,6 @@ class calc_error():
             return max(self.RD_each())
         else:
             return min(self.RD_each())
+
+    def Cosine(self, dim: int | None):
+        return F.cosine_similarity(self.pred, self.target, dim=1).mean(dim=dim)
