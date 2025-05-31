@@ -114,7 +114,10 @@ class Graph(InMemoryDataset):
         '''process raw data to generate dataset
         '''
         # read graph_attr_file
-        database = pd.read_csv(self.graph_attr_file)
+        if self.graph_attr_file is None:
+            database = None
+        else:
+            database = pd.read_csv(self.graph_attr_file)
 
         # read sdf file
         suppl = Chem.SDMolSupplier(self.sdf_file,
@@ -128,34 +131,38 @@ class Graph(InMemoryDataset):
         vector_dict = read_attr(self.vector_file, 'vector', len(suppl))
 
         # extract target and graph_attr from csv
-        if self.target_type == 'graph':
-            target = torch.tensor(
-                np.array(database.loc[:, self.target_list]),
-                dtype=torch.float
-                ).reshape(-1, 1, len(self.target_list)).unsqueeze(1)
-        elif self.target_type == 'vector':
-            target = torch.tensor(
-                np.array([vector_dict[key] for key in self.target_list]),
-                dtype=torch.float
-            ).reshape(len(suppl), -1, len(self.target_list)).unsqueeze(1)
-        elif self.target_type == 'node':
-            target: List[torch.Tensor] = []
-            node_target_list = [node_attr_dict[key] for key in self.target_list]
-            for i in zip(*node_target_list):
-                target.append(
-                    torch.tensor(
-                        np.dstack(i), dtype=torch.float
-                        ).reshape(-1, len(self.target_list))
-                    )
-        elif self.target_type == 'edge':
-            target: List[torch.Tensor] = []
-            edge_target_list = [edge_attr_dict[key] for key in self.target_list]
-            for i in zip(*edge_target_list):
-                target.append(
-                    torch.tensor(
-                        np.dstack(i), dtype=torch.float
-                        ).reshape(-1, len(self.target_list))
-                    )
+        try:
+            if self.target_type == 'graph':
+                target = torch.tensor(
+                    np.array(database.reindex(columns=self.target_list)),
+                    dtype=torch.float
+                    ).reshape(-1, 1, len(self.target_list)).unsqueeze(1)
+            elif self.target_type == 'vector':
+                target = torch.tensor(
+                    np.array([vector_dict[key] for key in self.target_list]),
+                    dtype=torch.float
+                ).reshape(len(suppl), -1, len(self.target_list)).unsqueeze(1)
+            elif self.target_type == 'node':
+                target: List[torch.Tensor] = []
+                node_target_list = [node_attr_dict[key] for key in self.target_list]
+                for i in zip(*node_target_list):
+                    target.append(
+                        torch.tensor(
+                            np.dstack(i), dtype=torch.float
+                            ).reshape(-1, len(self.target_list))
+                        )
+            elif self.target_type == 'edge':
+                target: List[torch.Tensor] = []
+                edge_target_list = [edge_attr_dict[key] for key in self.target_list]
+                for i in zip(*edge_target_list):
+                    target.append(
+                        torch.tensor(
+                            np.dstack(i), dtype=torch.float
+                            ).reshape(-1, len(self.target_list))
+                        )
+        except TypeError:
+            target = torch.empty(len(suppl), 1, 1, 0)
+
         if self.graph_attr_list:
             graph_attr = torch.tensor(
                 np.array(database.loc[:, self.graph_attr_list]),
