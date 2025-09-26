@@ -9,14 +9,13 @@ This repo contains codes for generating datasets and training GNN models.
 ### Step 1. Clone this repo
 
 ```shell
-cd <dir>
-git clone git@10.158.134.128:hdj/gnn.git
+git clone git@github.com:hdj020402/GNN.git
 ```
 
 ### Step 2. Create conda environment
 
 ```shell
-conda create -n <newenv>
+conda create -n <newenv> python=3.12
 ```
 
 - If you are going to run the GNN code on a device with GPU, you can run the following command.
@@ -104,9 +103,11 @@ conda create -n <newenv>
             - `aromatic`: whether the atom is aromatic or not
             - `num_neighbors`: number of connected atoms
             - `num_hs`: number of connected Hs
-        - `default_edge_attr`: dict[str, bool], you can choose whether to include each default edge attribute
+        - `default_edge_attr`: dict, you can choose whether to include each default edge attribute
             - `edge_type`: one hot, determine the bond order
-            - `bond_length`: list, the format of the elements in the list must be `r^n`, where n is a float; e.g. `[r^1, r^-2, r^-0.33]`
+            - `bond_length`: dict
+                - `power`: list, the format of the elements in the list must be `r^n`, where n is a float; e.g. `[r^1, r^-2, r^-0.33]`
+                - `threshold`: float, if the distance between two nodes is greater than the threshold, the bond length will be infinite; can be `null`, which means there is no threshold
         - `node_attr_list`: list, to select the node features you need; can be `null` or `[]`
         - `edge_attr_list`: list, to select the edge features you need; can be `null` or `[]`
         - `graph_attr_list`: list, to select the molecular features you need; can be `null` or `[]`
@@ -147,9 +148,15 @@ conda create -n <newenv>
         - `early_stopping`: decide whether to stop training earlier than determined `epoch_num` according to the value of `val_loss`
             - `patience`: integer
             - `delta`: float
-        - `criteria_list`: list; criteria of estimating the model; you can choose both or just one of them, but `[]` or `null` is invalid
+        - `criteria_list`: list; criteria of estimating the model; you can choose one or more criteria mentioned below, but `[]` or `null` is not allowed
             - `MAE`: Mean Absolute Error
             $$MAE = \frac{1}{n} \sum_{i=1}^{n} |y_i - \hat{y}_i|$$
+            - `MSE`: Mean Squared Error
+            $$MSE = \frac{1}{n} \sum_{i=1}^{n} (y_i - \hat{y}_i)^2$$
+            - `RMSD`: Root Mean Squared Deviation
+            $$RMSD = \sqrt{\frac{1}{n} \sum_{i=1}^{n} (y_i - \hat{y}_i)^2}$$
+            - `R2`: Coefficient of Determination
+            $$R^2 = 1 - \frac{\sum_{i=1}^{n} (y_i - \hat{y}_i)^2}{\sum_{i=1}^{n} (y_i - \bar{y})^2}$$
             - `AARD`: Average Absolute Relative Deviation
             $$AARD(\%) = \frac{100}{n} \sum_{i=1}^{n} \left|\frac{y_i - \hat{y}_i}{y_i}\right|$$
     - Prediction
@@ -205,16 +212,16 @@ gnn/
 |   |   |   |   |   ├── ckpt_<TIME>_050.pth
 |   |   |   |   |   ├── ckpt_<TIME>_100.pth
 |   |   |   |   |   └── ...
-|   |   |   |   ├── best_model_AARD_<TIME>.pth
-|   |   |   |   └── best_model_MAE_<TIME>.pth
+|   |   |   |   └── best_model_<loss_fn>_<TIME>.pth
 |   |   |   ├── Plot/
-|   |   |   |   ├── best_model_AARD_<TIME>_test.png
-|   |   |   |   ├── best_model_AARD_<TIME>_train_test.png
-|   |   |   |   ├── best_model_AARD_<TIME>_train.png
+|   |   |   |   ├── best_model_<loss_fn>_<TIME>_test.png
+|   |   |   |   ├── best_model_<loss_fn>_<TIME>_train_test.png
+|   |   |   |   ├── best_model_<loss_fn>_<TIME>_train.png
 |   |   |   |   └── ...
+|   |   |   ├── gpu_monitor.log
 |   |   |   ├── model_parameters.yml
 |   |   |   └── training_<TIME>.log
-|   |   └── recording.csv
+|   |   └── recording/
 |   └── recording.log
 └── ...
 ```
@@ -226,5 +233,3 @@ Checkpoints are stored in `Model/checkpoint/` according to the `model_save_step`
 The scatter plots of best models predicting the data of different datasets and the `<data>-epoch` plots are stored in `Plot/`, which can offer you an intuitive understanding of the results.
 
 File `training_<TIME>.log` records the parameters and the basic information of datasets. Besides, it records the training information of specific epochs according to the `output_step` set in `model_parameters.yml`. This information is used to generate the `<data>-epoch` plots. At the end of the file, the information of the best epoch based on two criteria are extracted from previous content.
-
-In `<jobtype>/`, there is a file `recording.csv`. This file records `TIME`, `features`, `criteria`, `best_epoch`, `Train_MAE`, `Train_R2`, `Train_AARD`, `Val_MAE`, `Val_R2`, `Val_AARD`, `Test_MAE`, `Test_R2` and `Test_AARD` of each training. The features are seperated by `;`, so they can be put in one cell when opened with Excel. Hope this file will help you when processing data.
