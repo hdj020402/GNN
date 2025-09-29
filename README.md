@@ -188,9 +188,11 @@ conda create -n <newenv> python=3.12
 
 5. `feature_filtration_example.yml` gives an example of the feature_filtration file.
 
-### Step 4. Train your model
+### Step 4. Run your model
 
-Make sure you are in the `gnn/` folder and run the following command.
+Make sure you are in the `gnn/` folder and run one of the following commands based on your mode selection.
+
+**For Training**
 
 ```shell
 nohup python main.py > Training_Recording/recording.log 2>&1 &
@@ -198,38 +200,99 @@ nohup python main.py > Training_Recording/recording.log 2>&1 &
 
 With this command, you can train the model in the background. The folder `Training_Recording/` will be generated automatically and you can check the `.log` file for error messages.
 
+**For Hyperparameter Tuning**
+
+```shell
+nohup python main.py > HPTuning_Recording/recording.log 2>&1 &
+```
+
+With this command, you can perform hyperparameter tuning in the background. The folder `HPTuning_Recording/` will be generated automatically and you can check the `.log` file for error messages and trial results.
+
+**For Prediction**
+
+```shell
+nohup python main.py > Prediction_Recording/recording.log 2>&1 &
+```
+
+With this command, you can perform prediction using a pre-trained model in the background. The folder `Prediction_Recording/` will be generated automatically and you can check the `.log` file for error messages and prediction results.
+
 ### Step 5. Post-processing
 
-The results will be output to `Training_Recording/`. The structure of `Training_Recording/` is as follows.
+The results will be output to different folders according to the mode you selected. The structure of output folders is as follows.
 
 ```plain text
 gnn/
+├── HPTuning_Recording/
+|   └── <jobtype>/
+|       └── <TIME>/
+|           ├── Trial_000/
+|           |   ├── Model/
+|           |   |   ├── checkpoint/
+|           |   |   |   ├── ckpt_<TIME>_050.pth
+|           |   |   |   ├── ckpt_<TIME>_100.pth
+|           |   |   |   └── ...
+|           |   |   └── best_model_<loss_fn>_<TIME>.pth
+|           |   ├── Plot/
+|           |   |   ├── best_model_<loss_fn>_<TIME>_test.png
+|           |   |   ├── best_model_<loss_fn>_<TIME>_train_test.png
+|           |   |   ├── best_model_<loss_fn>_<TIME>_train.png
+|           |   |   └── ...
+|           |   ├── gpu_monitor.log
+|           |   ├── model_parameters.yml
+|           |   └── training_<TIME>.log
+|           ├── Trial_001/
+|           ├── hparam_tuning.yml
+|           ├── hptuning_<TIME>.db
+|           └── hptuning_<TIME>.log
+├── Prediction_Recording/
+|   └── <jobtype>/
+|       └── <TIME>/
+|           ├── Data/
+|           |   ├── Overall/
+|           |   |   ├── pred.pt
+|           |   |   └── target.pt
+|           |   ├── <target1>/
+|           |   |   ├── pred.pt
+|           |   |   └── target.pt
+|           |   └── ...
+|           ├── Model/
+|           |   └── best_model_<loss_fn>_<TIME>.pth
+|           ├── Plot/
+|           |   ├── Overall/
+|           |   └── <target1>/
+|           |       └── <dataset_range>.png
+|           ├── gpu_monitor.log
+|           ├── model_parameters.yml
+|           └── prediction_<TIME>.log
 ├── Training_Recording/
-|   ├── <jobtype>/
-|   |   ├── <TIME>/
-|   |   |   ├── Model/
-|   |   |   |   ├── checkpoint/
-|   |   |   |   |   ├── ckpt_<TIME>_050.pth
-|   |   |   |   |   ├── ckpt_<TIME>_100.pth
-|   |   |   |   |   └── ...
-|   |   |   |   └── best_model_<loss_fn>_<TIME>.pth
-|   |   |   ├── Plot/
-|   |   |   |   ├── best_model_<loss_fn>_<TIME>_test.png
-|   |   |   |   ├── best_model_<loss_fn>_<TIME>_train_test.png
-|   |   |   |   ├── best_model_<loss_fn>_<TIME>_train.png
-|   |   |   |   └── ...
-|   |   |   ├── gpu_monitor.log
-|   |   |   ├── model_parameters.yml
-|   |   |   └── training_<TIME>.log
-|   |   └── recording/
-|   └── recording.log
+|   └── <jobtype>/
+|       └── <TIME>/
+|           ├── Model/
+|           |   ├── checkpoint/
+|           |   |   ├── ckpt_<TIME>_050.pth
+|           |   |   ├── ckpt_<TIME>_100.pth
+|           |   |   └── ...
+|           |   └── best_model_<loss_fn>_<TIME>.pth
+|           ├── Plot/
+|           |   ├── best_model_<loss_fn>_<TIME>_test.png
+|           |   ├── best_model_<loss_fn>_<TIME>_train_test.png
+|           |   ├── best_model_<loss_fn>_<TIME>_train.png
+|           |   └── ...
+|           ├── gpu_monitor.log
+|           ├── model_parameters.yml
+|           └── training_<TIME>.log
 └── ...
 ```
 
-Results of the same type of job will be classified to a folder called `<jobtype>/`. Then, different training tasks will have a unique folder named after a specific time in order to distinguish among one another.
+Results of the same type of job will be classified to a folder called `<jobtype>/`. Then, different tasks will have a unique folder named after a specific time in order to distinguish among one another.
 
-Checkpoints are stored in `Model/checkpoint/` according to the `model_save_step` set in `model_parameters.yml`, while two best models based on AARD and MAE respectively are stored in `Model/` directly.
+For **Training** tasks, checkpoints are stored in `Model/checkpoint/` according to the `model_save_step` set in `model_parameters.yml`, while the best model based on loss function is stored in `Model/` directly.
 
-The scatter plots of best models predicting the data of different datasets and the `<data>-epoch` plots are stored in `Plot/`, which can offer you an intuitive understanding of the results.
+The scatter plots of the best model predicting the data of different datasets and the `<data>-epoch` plots are stored in `Plot/`, which can offer you an intuitive understanding of the results.
 
 File `training_<TIME>.log` records the parameters and the basic information of datasets. Besides, it records the training information of specific epochs according to the `output_step` set in `model_parameters.yml`. This information is used to generate the `<data>-epoch` plots. At the end of the file, the information of the best epoch based on two criteria are extracted from previous content.
+
+For **Hyperparameter Tuning** tasks, each trial will have its own folder with the structure similar to training tasks. The best model among all trials will be saved in the respective trial folder. You can compare the performance of different hyperparameter combinations through the log files.
+
+For **Prediction** tasks, the predicted results and true values are saved in `Data/` folder. Scatter plots comparing predictions and true values are stored in `Plot/` folder. The pre-trained model used for prediction is also copied to the `Model/` folder.
+
