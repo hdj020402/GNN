@@ -1,4 +1,5 @@
 import os, time, yaml, json
+os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
 import torch, optuna
 import pandas as pd
 from functools import partial
@@ -248,7 +249,6 @@ def main():
 
     seed = param['seed']
     setup_seed(seed)
-    os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
     torch.use_deterministic_algorithms(True)
 
     if param['mode'] in ['training', 'fine-tuning']:
