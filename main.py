@@ -1,5 +1,6 @@
 import os, time, yaml, json
 os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
+os.environ["PYTHONHASHSEED"] = "0"
 import torch, optuna
 import pandas as pd
 from functools import partial
