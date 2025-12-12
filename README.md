@@ -2,21 +2,19 @@
 
 ## Introduction
 
-This repo contains codes for generating datasets and training GNN models.
+This repository contains codes for generating datasets and training GNN models.
+
+This repository contains the GNN code used in the paper. For the latest version of the GNN code, please visit https://github.com/hdj020402/GNN — the repository will be continuously updated.
 
 ## Instruction
 
 ### Step 1. Clone this repo
 
-```shell
-cd <dir>
-git clone git@10.158.134.128:hdj/gnn.git
-```
 
 ### Step 2. Create conda environment
 
 ```shell
-conda create -n <newenv>
+conda create -n <newenv> python=3.12
 ```
 
 - If you are going to run the GNN code on a device with GPU, you can run the following command.
@@ -42,16 +40,11 @@ conda create -n <newenv>
 3. Modify the parameters to meet your demand. Each parameter is explained as follows:
     - General
         - `jobtype`: the type of your job, can be any words
-        - `mode`: corresponding to different functions; choose among `training`, `hparam_tuning`, `feature_filtration`, `prediction` and `fine-tuning`
+        - `mode`: corresponding to different functions; choose among `training`, `hparam_tuning`, `prediction` and `fine-tuning`
             - `training`: train a model with given parameters
             - `hparam_tuning`: train multiple models with different combinations of hyper-parameters in order to choose the best one according to models' performance; to use this function, file `hparam_tuning.yml` is a must, and the content of this file will be explained in detail in [point 4](#hparam_tuning)
-            - `feature_filtration`: train multiple models with different combinations of features in order to choose the best one according to models' performance
             - `prediction`: predict the target in a new dataset with a pre-trained model
             - `fine-tuning`: perform training with a pre-trained model on a different dataset
-        - `feature_filter_mode`: method of screening the best combination of features; choose among `one_by_one`, `file` and `null`
-            - `one_by_one`: `node_attr_list`, `edge_attr_list` and `graph_attr_list` will be merged into a new list, and each time, one feature will be removed from the new list to form a new feature combination
-            - `file`: not implemented; you can record multiple combination of features you want to test in `feature_filter.yml`, and train the models one by one; to use this function, file `feature_filter.yml` is a must, and the content of this file will be explained in detail in [point 5](#feature_filtration)
-            - `null`: no screening task
         - `seed`: integer, to generate reproducible random splitted datasets and prediction results
         - `GPU_memo_frac`: decimal, the proportion of GPU memory (or CUDA memory) that can be allocated and used by a single process
     - Dataset (relative paths are recommended)
@@ -106,7 +99,9 @@ conda create -n <newenv>
             - `num_hs`: number of connected Hs
         - `default_edge_attr`: dict[str, bool], you can choose whether to include each default edge attribute
             - `edge_type`: one hot, determine the bond order
-            - `bond_length`: list, the format of the elements in the list must be `r^n`, where n is a float; e.g. `[r^1, r^-2, r^-0.33]`
+            - `bond_length`: dict
+                - `power`: list, the format of the elements in the list must be `r^n`, where n is a float; e.g. `[r^1, r^-2, r^-0.33]`
+                - `threshold`: float, if the distance between two nodes is greater than the threshold, the bond length will be infinite; can be `null`, which means there is no threshold
         - `node_attr_list`: list, to select the node features you need; can be `null` or `[]`
         - `edge_attr_list`: list, to select the edge features you need; can be `null` or `[]`
         - `graph_attr_list`: list, to select the molecular features you need; can be `null` or `[]`
@@ -178,13 +173,12 @@ conda create -n <newenv>
         - `hparam`: must be one of the keys in `model_parameters.yml`
             - `type`: choose among `int`, `float`, `uniform`, `discrete_uniform`, `loguniform` and `categorical`
             - `kwargs`: users can modify whichever parameter in the function by providing `keyword: argument`
-<a id="feature_filtration"></a>
 
-5. `feature_filtration_example.yml` gives an example of the feature_filtration file.
+### Step 4. Run your model
 
-### Step 4. Train your model
+Make sure you are in the `gnn/` folder and run one of the following commands based on your mode selection.
 
-Make sure you are in the `gnn/` folder and run the following command.
+**For Training**
 
 ```shell
 nohup python main.py > Training_Recording/recording.log 2>&1 &
@@ -192,40 +186,98 @@ nohup python main.py > Training_Recording/recording.log 2>&1 &
 
 With this command, you can train the model in the background. The folder `Training_Recording/` will be generated automatically and you can check the `.log` file for error messages.
 
+**For Hyperparameter Tuning**
+
+```shell
+nohup python main.py > HPTuning_Recording/recording.log 2>&1 &
+```
+
+With this command, you can perform hyperparameter tuning in the background. The folder `HPTuning_Recording/` will be generated automatically and you can check the `.log` file for error messages and trial results.
+
+**For Prediction**
+
+```shell
+nohup python main.py > Prediction_Recording/recording.log 2>&1 &
+```
+
+With this command, you can perform prediction using a pre-trained model in the background. The folder `Prediction_Recording/` will be generated automatically and you can check the `.log` file for error messages and prediction results.
+
 ### Step 5. Post-processing
 
-The results will be output to `Training_Recording/`. The structure of `Training_Recording/` is as follows.
+The results will be output to different folders according to the mode you selected. The structure of output folders is as follows.
 
 ```plain text
 gnn/
+├── HPTuning_Recording/
+|   └── <jobtype>/
+|       └── <TIME>/
+|           ├── Trial_000/
+|           |   ├── Model/
+|           |   |   ├── checkpoint/
+|           |   |   |   ├── ckpt_<TIME>_050.pth
+|           |   |   |   ├── ckpt_<TIME>_100.pth
+|           |   |   |   └── ...
+|           |   |   └── best_model_<loss_fn>_<TIME>.pth
+|           |   ├── Plot/
+|           |   |   ├── best_model_<loss_fn>_<TIME>_test.png
+|           |   |   ├── best_model_<loss_fn>_<TIME>_train_test.png
+|           |   |   ├── best_model_<loss_fn>_<TIME>_train.png
+|           |   |   └── ...
+|           |   ├── gpu_monitor.log
+|           |   ├── model_parameters.yml
+|           |   └── training_<TIME>.log
+|           ├── Trial_001/
+|           ├── hparam_tuning.yml
+|           ├── hptuning_<TIME>.db
+|           └── hptuning_<TIME>.log
+├── Prediction_Recording/
+|   └── <jobtype>/
+|       └── <TIME>/
+|           ├── Data/
+|           |   ├── Overall/
+|           |   |   ├── pred.pt
+|           |   |   └── target.pt
+|           |   ├── <target1>/
+|           |   |   ├── pred.pt
+|           |   |   └── target.pt
+|           |   └── ...
+|           ├── Model/
+|           |   └── best_model_<loss_fn>_<TIME>.pth
+|           ├── Plot/
+|           |   ├── Overall/
+|           |   └── <target1>/
+|           |       └── <dataset_range>.png
+|           ├── gpu_monitor.log
+|           ├── model_parameters.yml
+|           └── prediction_<TIME>.log
 ├── Training_Recording/
-|   ├── <jobtype>/
-|   |   ├── <TIME>/
-|   |   |   ├── Model/
-|   |   |   |   ├── checkpoint/
-|   |   |   |   |   ├── ckpt_<TIME>_050.pth
-|   |   |   |   |   ├── ckpt_<TIME>_100.pth
-|   |   |   |   |   └── ...
-|   |   |   |   ├── best_model_AARD_<TIME>.pth
-|   |   |   |   └── best_model_MAE_<TIME>.pth
-|   |   |   ├── Plot/
-|   |   |   |   ├── best_model_AARD_<TIME>_test.png
-|   |   |   |   ├── best_model_AARD_<TIME>_train_test.png
-|   |   |   |   ├── best_model_AARD_<TIME>_train.png
-|   |   |   |   └── ...
-|   |   |   ├── model_parameters.yml
-|   |   |   └── training_<TIME>.log
-|   |   └── recording.csv
-|   └── recording.log
+|   └── <jobtype>/
+|       └── <TIME>/
+|           ├── Model/
+|           |   ├── checkpoint/
+|           |   |   ├── ckpt_<TIME>_050.pth
+|           |   |   ├── ckpt_<TIME>_100.pth
+|           |   |   └── ...
+|           |   └── best_model_<loss_fn>_<TIME>.pth
+|           ├── Plot/
+|           |   ├── best_model_<loss_fn>_<TIME>_test.png
+|           |   ├── best_model_<loss_fn>_<TIME>_train_test.png
+|           |   ├── best_model_<loss_fn>_<TIME>_train.png
+|           |   └── ...
+|           ├── gpu_monitor.log
+|           ├── model_parameters.yml
+|           └── training_<TIME>.log
 └── ...
 ```
 
-Results of the same type of job will be classified to a folder called `<jobtype>/`. Then, different training tasks will have a unique folder named after a specific time in order to distinguish among one another.
+Results of the same type of job will be classified to a folder called `<jobtype>/`. Then, different tasks will have a unique folder named after a specific time in order to distinguish among one another.
 
-Checkpoints are stored in `Model/checkpoint/` according to the `model_save_step` set in `model_parameters.yml`, while two best models based on AARD and MAE respectively are stored in `Model/` directly.
+For **Training** tasks, checkpoints are stored in `Model/checkpoint/` according to the `model_save_step` set in `model_parameters.yml`, while the best model based on loss function is stored in `Model/` directly.
 
-The scatter plots of best models predicting the data of different datasets and the `<data>-epoch` plots are stored in `Plot/`, which can offer you an intuitive understanding of the results.
+The scatter plots of the best model predicting the data of different datasets and the `<data>-epoch` plots are stored in `Plot/`, which can offer you an intuitive understanding of the results.
 
 File `training_<TIME>.log` records the parameters and the basic information of datasets. Besides, it records the training information of specific epochs according to the `output_step` set in `model_parameters.yml`. This information is used to generate the `<data>-epoch` plots. At the end of the file, the information of the best epoch based on two criteria are extracted from previous content.
 
-In `<jobtype>/`, there is a file `recording.csv`. This file records `TIME`, `features`, `criteria`, `best_epoch`, `Train_MAE`, `Train_R2`, `Train_AARD`, `Val_MAE`, `Val_R2`, `Val_AARD`, `Test_MAE`, `Test_R2` and `Test_AARD` of each training. The features are seperated by `;`, so they can be put in one cell when opened with Excel. Hope this file will help you when processing data.
+For **Hyperparameter Tuning** tasks, each trial will have its own folder with the structure similar to training tasks. The best model among all trials will be saved in the respective trial folder. You can compare the performance of different hyperparameter combinations through the log files.
+
+For **Prediction** tasks, the predicted results and true values are saved in `Data/` folder. Scatter plots comparing predictions and true values are stored in `Plot/` folder. The pre-trained model used for prediction is also copied to the `Model/` folder.
