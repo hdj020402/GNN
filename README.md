@@ -10,6 +10,9 @@ This repository contains the GNN code used in the paper. For the latest version 
 
 ### Step 1. Clone this repo
 
+```bash
+git clone --branch fd25-v1.0.1-fixed-readme --depth 1 https://github.com/hdj020402/GNN.git
+```
 
 ### Step 2. Create conda environment
 
