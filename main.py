@@ -4,7 +4,6 @@ os.environ["PYTHONHASHSEED"] = "0"
 import torch, optuna
 import pandas as pd
 from functools import partial
-from typing import Dict
 
 from utils.data_processing import DataProcessing
 from utils.reprocess import reprocess
@@ -23,7 +22,7 @@ from utils.save_model import SaveModel
 from utils.utils import extract_keys_and_lists, Timer
 from utils.gpu_monitor import GPUMonitor
 
-def training(param: Dict, ht_param: Dict | None = None, trial: optuna.Trial | None = None) -> float:
+def training(param: dict, ht_param: dict | None = None, trial: optuna.Trial | None = None) -> float:
     fp = FileProcessing(param, ht_param, trial)
     fp.pre_make()
     plot_dir, model_dir, ckpt_dir = fp.plot_dir, fp.model_dir, fp.ckpt_dir
@@ -135,7 +134,7 @@ def training(param: Dict, ht_param: Dict | None = None, trial: optuna.Trial | No
 
     return model_saving.best_val_loss
 
-def prediction(param: Dict) -> None:
+def prediction(param: dict) -> None:
     fp = FileProcessing(param)
     fp.pre_make()
     plot_dir, data_dir, model_dir = fp.plot_dir, fp.data_dir, fp.model_dir
@@ -204,14 +203,14 @@ def prediction(param: Dict) -> None:
             output_path = f"{plot_dir}/{task}/{param['dataset_range']}.png",
             )
 
-def hparam_tuning(param: Dict, ht_param: Dict[str, Dict]) -> None:
+def hparam_tuning(param: dict, ht_param: dict[str, dict]) -> None:
     jobtype = param['jobtype']
     fp = FileProcessing(param)
     fp.pre_make()
     storage_name = fp.optuna_db
     hptuning_logger = fp.hptuning_logger
 
-    def hparam_optim(param: Dict, ht_param: Dict[str, Dict], trial: optuna.Trial) -> float:
+    def hparam_optim(param: dict, ht_param: dict[str, dict], trial: optuna.Trial) -> float:
         SUGGEST_METHOD_MAP = {
             'int': trial.suggest_int,
             'float': trial.suggest_float,
@@ -245,7 +244,7 @@ def main():
     """
     TIME = time.strftime('%b_%d_%Y_%H%M%S', time.localtime())
     with open('model_parameters.yml', 'r', encoding='utf-8') as mp:
-        param: Dict = yaml.full_load(mp)
+        param: dict = yaml.full_load(mp)
     param['time'] = TIME
 
     seed = param['seed']
@@ -256,14 +255,14 @@ def main():
         training(param)
     elif param['mode'] == 'hparam_tuning':
         with open('hparam_tuning.yml', 'r', encoding='utf-8') as ht:
-            ht_param: Dict[str, Dict] = yaml.full_load(ht)
+            ht_param: dict[str, dict] = yaml.full_load(ht)
         hparam_tuning(param, ht_param)
     elif param['mode'] == 'feature_filtration':
         if param['feature_filter_mode'] == 'one_by_one':
             attr_filter(training, param)
         elif param['feature_filter_mode'] == 'file':
             with open('feature_filter.yml') as ff:
-                feature_dict: Dict = yaml.full_load(ff)
+                feature_dict: dict = yaml.full_load(ff)
             for idx, feature in feature_dict.items():
                 param['node_attr_list'] = feature['node_attr_list']
                 param['edge_attr_list'] = feature['edge_attr_list']
