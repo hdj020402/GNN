@@ -175,7 +175,7 @@ def prediction(param: dict) -> None:
 
     criteria_list = param['criteria_list']
 
-    evaluation = Evaluation(loader, model, device, param, norm_dict, param['target_transform'])
+    evaluation = Evaluation(loader, model, param, device, norm_dict, param['target_transform'])
     pred, target = evaluation.pred, evaluation.target
     gpu_monitor.stop()
 
@@ -193,10 +193,10 @@ def prediction(param: dict) -> None:
             torch.save(pred, f'{data_dir}/{subtask}/pred.pt')
             torch.save(target, f'{data_dir}/{subtask}/target.pt')
         else:
-            torch.save(pred[:, idx], f'{data_dir}/{subtask}/pred.pt')
-            torch.save(target[:, idx], f'{data_dir}/{subtask}/target.pt')
+            torch.save(pred[:, 0, idx], f'{data_dir}/{subtask}/pred.pt')
+            torch.save(target[:, 0, idx], f'{data_dir}/{subtask}/target.pt')
 
-    for t, p, task in zip(torch.split(target, 1, dim=1), torch.split(pred, 1, dim=1), param['target_list']):
+    for t, p, task in zip(torch.split(target, 1, dim=-1), torch.split(pred, 1, dim=-1), param['target_list']):
         scatter(
             [t, p],
             scatter_label = 'eval',
