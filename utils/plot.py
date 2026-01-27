@@ -42,8 +42,8 @@ def scatter(
     lower_limit = np.inf
     upper_limit = -np.inf
     for i, data in enumerate(args):
-        x = data[0].cpu().detach().numpy() if isinstance(data[0], torch.Tensor) else data[0]
-        y = data[1].cpu().detach().numpy() if isinstance(data[1], torch.Tensor) else data[1]
+        x = data[0].flatten().cpu().detach().numpy() if isinstance(data[0], torch.Tensor) else data[0]
+        y = data[1].flatten().cpu().detach().numpy() if isinstance(data[1], torch.Tensor) else data[1]
         lower_limit = min([min(x), min(y)]) if min([min(x), min(y)]) < lower_limit else lower_limit
         upper_limit = max([max(x), max(y)]) if max([max(x), max(y)]) > upper_limit else upper_limit
         ax_1.scatter(x, y, s, dot_color_list[i], label = scatter_label[i], marker = marker[i])

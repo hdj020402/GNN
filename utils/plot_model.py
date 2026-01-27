@@ -28,9 +28,9 @@ def scatterFromModel(model_path: str, param: Dict, DATA: DataProcessing, output_
     eval_class = partial(
         Evaluation,
         model = model,
+        param = param,
         device = device,
-        mean = DATA.mean[-len_target:],
-        std = DATA.std[-len_target:],
+        norm_dict = DATA.norm_dict,
         transform = param['target_transform']
         )
     train_eval = eval_class(train_loader)
@@ -44,7 +44,7 @@ def scatterFromModel(model_path: str, param: Dict, DATA: DataProcessing, output_
 
     file_name = os.path.splitext(os.path.basename(model_path))[0]
     for key, value in eval_dict.items():
-        for target, pred, task in zip(torch.split(value.target, 1, dim=1), torch.split(value.pred, 1, dim=1), param['target_list']):
+        for target, pred, task in zip(torch.split(value.target, 1, dim=-1), torch.split(value.pred, 1, dim=-1), param['target_list']):
             scatter(
                 [target, pred],
                 scatter_label = [key],
