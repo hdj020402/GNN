@@ -149,7 +149,7 @@ def prediction(param: dict) -> None:
     dp_timer.start()
     DATA = DataProcessing(param, reprocess = reprocess(param))
     dataset = DATA.dataset
-    mean, std = DATA.mean, DATA.std
+    norm_dict = DATA.norm_dict
     train_loader = DATA.train_loader
     val_loader = DATA.val_loader
     test_loader = DATA.test_loader
@@ -170,12 +170,12 @@ def prediction(param: dict) -> None:
     len_target = len(param['target_list'])
     fp.basic_info_log(
         dataset, None, None, None, loader,
-        mean[-len_target:], std[-len_target:], model, dp_timer
+        norm_dict, model, dp_timer
         )
 
     criteria_list = param['criteria_list']
 
-    evaluation = Evaluation(loader, model, device, mean[-len_target:], std[-len_target:], param['target_transform'])
+    evaluation = Evaluation(loader, model, device, param, norm_dict, param['target_transform'])
     pred, target = evaluation.pred, evaluation.target
     gpu_monitor.stop()
 
