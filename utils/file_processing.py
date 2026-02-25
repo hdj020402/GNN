@@ -93,6 +93,7 @@ class FileProcessing:
             os.makedirs(self.ckpt_dir)
             self.log_file = f'HPTuning_Recording/{self.jobtype}/{self.TIME}/{trial_name}/training_{trial_name}.log'
             self.training_logger = setup_logger(f'training_{trial_name}_logger', self.log_file)
+            self.tensorboard_dir = f'HPTuning_Recording/{self.jobtype}/{self.TIME}/{trial_name}/TensorBoard'
 
         else:
             os.makedirs(f'Training_Recording/{self.jobtype}/{self.TIME}')
@@ -109,6 +110,7 @@ class FileProcessing:
                 os.makedirs(f'Training_Recording/{self.jobtype}/recording')
             self.log_file = f'Training_Recording/{self.jobtype}/{self.TIME}/training_{self.TIME}.log'
             self.training_logger = setup_logger(f'training_{self.TIME}_logger', self.log_file)
+            self.tensorboard_dir = f'Training_Recording/{self.jobtype}/{self.TIME}/TensorBoard'
 
         self.gpu_logger = setup_logger(f'gpu_{self.TIME}_logger', f'{os.path.dirname(self.log_file)}/gpu_monitor.log')
 

@@ -2,19 +2,18 @@ import os, time, yaml, json
 os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
 os.environ["PYTHONHASHSEED"] = "0"
 import torch, optuna
-import pandas as pd
 from functools import partial
 
 import hydra
 from omegaconf import DictConfig, OmegaConf
+from torch.utils.tensorboard import SummaryWriter
 
 from utils.data_processing import DataProcessing
 from utils.reprocess import reprocess
 from utils.gen_model import gen_model, gen_optimizer, gen_scheduler
 from utils.setup_seed import setup_seed
-from utils.plot import loss_epoch, scatter
+from utils.plot import scatter
 from utils.plot_model import scatterFromModel
-from utils.post_processing import ReadLog
 from utils.evaluation import Evaluation
 from utils.calc_error import calc_error
 from utils.attr_filter import attr_filter
@@ -22,7 +21,7 @@ from utils.optuna_setup import OptunaSetup
 from utils.train import train, validate
 from utils.file_processing import FileProcessing
 from utils.save_model import SaveModel
-from utils.utils import extract_keys_and_lists, Timer
+from utils.utils import Timer
 from utils.gpu_monitor import GPUMonitor
 
 def training(param: dict, ht_param: dict | None = None, trial: optuna.Trial | None = None) -> float:
@@ -59,6 +58,8 @@ def training(param: dict, ht_param: dict | None = None, trial: optuna.Trial | No
         )
 
     criteria_set = set(param['criteria_list'] + [param['loss_fn']])
+    # For vector targets only Cosine is meaningful; decide once outside the loop
+    phase_criteria = {'Cosine'} if param['target_type'] == 'vector' else criteria_set
 
     eval_class = partial(
         Evaluation, param = param, device = device, norm_dict=norm_dict,
@@ -66,6 +67,8 @@ def training(param: dict, ht_param: dict | None = None, trial: optuna.Trial | No
 
     model_saving = SaveModel(norm_dict, param, model_dir, ckpt_dir, training_logger.info)
     start_epoch = fp.pre_train(model, optimizer, device, model_saving)
+
+    writer = SummaryWriter(log_dir=fp.tensorboard_dir)
 
     timer = Timer()
     timer.start()
@@ -79,8 +82,6 @@ def training(param: dict, ht_param: dict | None = None, trial: optuna.Trial | No
             for phase, loader in zip(['Train', 'Val', 'Test'], [train_loader, val_loader, test_loader]):
                 evaluation = eval_class(loader, model)
                 pred, target = evaluation.pred, evaluation.target
-                # For vector targets, only compute Cosine similarity
-                phase_criteria = {'Cosine'} if param['target_type'] == 'vector' else criteria_set
                 for criteria in phase_criteria:
                     errors = torch.cat([
                         getattr(calc_error(pred, target), criteria)(dim=None).unsqueeze(0),
@@ -90,6 +91,19 @@ def training(param: dict, ht_param: dict | None = None, trial: optuna.Trial | No
                         error_dict[subtask][phase][criteria] = round(float(error), 7)
             if scheduler is not None:
                 scheduler.step(val_loss)
+
+            # ── TensorBoard ────────────────────────────────────────────────
+            writer.add_scalar('Loss/train', loss, epoch)
+            writer.add_scalar('Loss/val', val_loss, epoch)
+            writer.add_scalar('LR', lr, epoch)
+            for criteria in phase_criteria:
+                for phase in ['Train', 'Val', 'Test']:
+                    writer.add_scalar(
+                        f'{criteria}/{phase}',
+                        error_dict['Overall'][phase][criteria],
+                        epoch,
+                    )
+            # ───────────────────────────────────────────────────────────────
 
             info = json.dumps({'Epoch': epoch} | error_dict)
 
@@ -113,27 +127,11 @@ def training(param: dict, ht_param: dict | None = None, trial: optuna.Trial | No
 
     fp.ending_log(timer, epoch)
     gpu_monitor.stop()
+    writer.close()
 
     scatterFromModel(
         f'{model_dir}/best_model_{param["time"]}.pth',
         param, DATA, plot_dir
-        )
-
-    log_info_dict = ReadLog(log_file, param).get_performance()
-    info_pairs = extract_keys_and_lists(log_info_dict)
-    for item, data in info_pairs:
-        if item == 'Epoch':
-            continue
-        loss_epoch(
-            [[log_info_dict['Epoch'], data]],
-            [f'{item}-Epoch'],
-            ['#03658C'],
-            'Epoch',
-            f'{item}',
-            f'{plot_dir}/{item.split("_")[0]}/{item}-Epoch_{param["time"]}.png'
-            )
-        pd.DataFrame({'Epoch': log_info_dict['Epoch'], item: data}).to_csv(
-            f'{plot_dir}/{item.split("_")[0]}/{item}-Epoch_{param["time"]}.csv', index=False
         )
 
     return model_saving.best_val_loss

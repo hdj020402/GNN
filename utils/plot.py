@@ -73,37 +73,6 @@ def scatter(
     plt.close()
     return fig
 
-def loss_epoch(
-    data_list: List[List[List[float]]],
-    label_list: List[str],
-    color_list: List[str],
-    xlabel: str,
-    ylabel: str,
-    output_path: str,
-    fontsize: float = 20,
-    ):
-    '''line graph
-    '''
-    assert len(data_list) == len(label_list), 'Data_list and Label_list are not of the same length.'
-    assert len(data_list) <= len(color_list), 'There are not enough colors.'
-    plt.figure(
-        figsize = (10, 10),
-        dpi = 300
-        )
-    for i, data in enumerate(data_list):
-        x = data[0]
-        y = data[1]
-        plt.plot(x, y, color = color_list[i], label = label_list[i])
-    plt.legend(loc = 'best', fontsize = fontsize)
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
-    plt.savefig(
-        output_path,
-        bbox_inches = 'tight',
-        dpi = 300
-        )
-    plt.close()
-
 def corr_heatmap(
     data: Dict,
     output_path: str,
