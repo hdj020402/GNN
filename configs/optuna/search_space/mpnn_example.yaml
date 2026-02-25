@@ -1,0 +1,22 @@
+# Example search space for MPNN backbone.
+# Select with: python main.py mode=hparam_tuning optuna/search_space=mpnn_example
+
+lr:
+  type: loguniform
+  low: 0.0001
+  high: 0.01
+
+optimizer:
+  type: categorical
+  choices: [Adam, AdamW, SGD]
+
+batch_size:
+  type: discrete_uniform
+  low: 32.0
+  high: 256.0
+  q: 32.0
+
+mp_times:
+  type: int
+  low: 2
+  high: 8

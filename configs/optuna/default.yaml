@@ -1,0 +1,20 @@
+# Optuna study settings.
+# These control the search algorithm, pruner, and study lifecycle.
+# Override on CLI: python main.py mode=hparam_tuning optuna.n_trials=50
+
+sampler:
+  type: TPESampler        # GridSampler / RandomSampler / TPESampler / CmaEsSampler
+  seed: 42
+
+pruner:
+  type: MedianPruner      # NopPruner / MedianPruner / HyperbandPruner / ThresholdPruner
+  n_warmup_steps: 20      # Epochs before pruning kicks in
+
+direction: minimize       # minimize / maximize
+n_trials: 100
+
+# Resume an existing study instead of starting fresh.
+continue_study:
+  enabled: false
+  storage: null           # e.g. sqlite:///HPTuning_Recording/test/study.db
+  study_name: null        # null = auto-detect first study in storage

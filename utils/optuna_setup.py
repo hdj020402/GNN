@@ -1,48 +1,53 @@
-import optuna
+"""Optuna study factory.
+
+Reads study settings from the ``optuna`` section of the Hydra config
+(cfg.optuna / param['optuna']).  The search-space is a separate dict
+(loaded from configs/optuna/search_space.yaml) that maps dot-notation
+param keys to suggest-method specs.
+"""
 import logging
-from typing import Dict
+import optuna
 
-class OptunaSetup:
-    def __init__(self, param: Dict, ht_param: Dict[str, Dict]) -> None:
-        self.param = param
-        self.ht_param = ht_param
 
-    def create_pruner(self) -> optuna.pruners.BasePruner:
-        pruner = getattr(optuna.pruners, self.ht_param['optuna']['pruner']['type'])
-        pruner_kwargs = {k: v for k, v in self.ht_param['optuna']['pruner'].items() if k != 'type'}
-        return pruner(**pruner_kwargs)
+def create_pruner(optuna_cfg: dict) -> optuna.pruners.BasePruner:
+    pruner_cfg = optuna_cfg['pruner']
+    cls = getattr(optuna.pruners, pruner_cfg['type'])
+    kwargs = {k: v for k, v in pruner_cfg.items() if k != 'type'}
+    return cls(**kwargs)
 
-    def create_sampler(self) -> optuna.samplers.BaseSampler:
-        sampler = getattr(optuna.samplers, self.ht_param['optuna']['sampler']['type'])
-        sampler_kwargs = {k: v for k, v in self.ht_param['optuna']['sampler'].items() if k != 'type'}
-        return sampler(**sampler_kwargs)
 
-    def create_study(self, study_name: str, storage: str) -> optuna.Study:
-        if self.ht_param['optuna']['continue_trials']['continue'] is False:
-            return optuna.create_study(
-                sampler=self.create_sampler(),
-                pruner=self.create_pruner(),
-                direction=self.ht_param['optuna']['direction'],
-                study_name=study_name,
-                storage=storage,
-                load_if_exists=True
-                )
-        else:
-            return self.load_study()
+def create_sampler(optuna_cfg: dict) -> optuna.samplers.BaseSampler:
+    sampler_cfg = optuna_cfg['sampler']
+    cls = getattr(optuna.samplers, sampler_cfg['type'])
+    kwargs = {k: v for k, v in sampler_cfg.items() if k != 'type'}
+    return cls(**kwargs)
 
-    def logging_setup(self, hptuning_logger: logging.Logger) -> None:
-        optuna_logger = logging.getLogger('optuna')
-        optuna_logger.handlers = []
 
-        optuna_logger.addHandler(hptuning_logger.handlers[0])
-        optuna_logger.setLevel(logging.INFO)
+def create_study(optuna_cfg: dict, study_name: str, storage: str) -> optuna.Study:
+    """Create or resume an Optuna study from the config dict."""
+    cont = optuna_cfg.get('continue_study', {})
+    if cont.get('enabled', False):
+        resume_storage = cont.get('storage') or storage
+        resume_name = cont.get('study_name')
+        if resume_name is None:
+            summaries = optuna.get_all_study_summaries(storage=resume_storage)
+            resume_name = summaries[0].study_name
+        return optuna.load_study(study_name=resume_name, storage=resume_storage)
 
-        optuna_logger.propagate = False
+    return optuna.create_study(
+        sampler=create_sampler(optuna_cfg),
+        pruner=create_pruner(optuna_cfg),
+        direction=optuna_cfg['direction'],
+        study_name=study_name,
+        storage=storage,
+        load_if_exists=True,
+    )
 
-    def load_study(self):
-        storage = self.ht_param['optuna']['continue_trials']['storage']
-        study_name = self.ht_param['optuna']['continue_trials']['study_name']
-        if study_name is None:
-            study_summaries = optuna.get_all_study_summaries(storage=storage)
-            study_name = study_summaries[0].study_name
-        return optuna.load_study(study_name=study_name, storage=storage)
+
+def redirect_optuna_log(logger: logging.Logger) -> None:
+    """Route Optuna's own logger into the job's training logger."""
+    optuna_logger = logging.getLogger('optuna')
+    optuna_logger.handlers = []
+    optuna_logger.addHandler(logger.handlers[0])
+    optuna_logger.setLevel(logging.INFO)
+    optuna_logger.propagate = False

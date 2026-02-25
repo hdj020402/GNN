@@ -17,15 +17,15 @@ from utils.plot_model import scatterFromModel
 from utils.evaluation import Evaluation
 from utils.calc_error import calc_error
 from utils.attr_filter import attr_filter
-from utils.optuna_setup import OptunaSetup
+from utils.optuna_setup import create_study, redirect_optuna_log
 from utils.train import train, validate
 from utils.file_processing import FileProcessing
 from utils.save_model import SaveModel
 from utils.utils import Timer
 from utils.gpu_monitor import GPUMonitor
 
-def training(param: dict, ht_param: dict | None = None, trial: optuna.Trial | None = None) -> float:
-    fp = FileProcessing(param, ht_param, trial)
+def training(param: dict, trial: optuna.Trial | None = None) -> float:
+    fp = FileProcessing(param, trial=trial)
     fp.pre_make()
     plot_dir, model_dir, ckpt_dir = fp.plot_dir, fp.model_dir, fp.ckpt_dir
     log_file = fp.log_file
@@ -205,39 +205,50 @@ def prediction(param: dict) -> None:
             output_path = f"{plot_dir}/{task}/{param['dataset_range']}.png",
             )
 
-def hparam_tuning(param: dict, ht_param: dict[str, dict]) -> None:
+def hparam_tuning(param: dict) -> None:
+    """Run Optuna hyperparameter search.
+
+    Study settings come from ``param['optuna']`` (cfg.optuna).
+    The search space comes from ``param['search_space']`` (cfg.optuna.search_space).
+    Each key in search_space is a flat param name (e.g. ``lr``, ``optimizer``).
+    """
+    import copy
+
+    optuna_cfg = param['optuna']
+    search_space = param.get('search_space') or {}
+
     jobtype = param['jobtype']
     fp = FileProcessing(param)
     fp.pre_make()
     storage_name = fp.optuna_db
-    hptuning_logger = fp.hptuning_logger
+    redirect_optuna_log(fp.hptuning_logger)
 
-    def hparam_optim(param: dict, ht_param: dict[str, dict], trial: optuna.Trial) -> float:
-        SUGGEST_METHOD_MAP = {
-            'int': trial.suggest_int,
-            'float': trial.suggest_float,
-            'uniform': trial.suggest_uniform,
-            'discrete_uniform': trial.suggest_discrete_uniform,
-            'loguniform': trial.suggest_loguniform,
-            'categorical': trial.suggest_categorical,
-            }
-        for hparam, attr in ht_param.items():
-            if hparam == 'optuna':
-                continue
-            suggest_method = SUGGEST_METHOD_MAP[attr['type']]
-            sm_kwargs = {k: v for k, v in attr.items() if k != 'type'}
-            param[hparam] = suggest_method(hparam, **sm_kwargs)
-        criteria = training(param, ht_param, trial)
-        return criteria
+    # Map type strings to (suggest_method, extra_kwargs_transform) pairs.
+    # Optuna 3+ deprecates suggest_loguniform / suggest_discrete_uniform.
+    def _suggest(trial: optuna.Trial, name: str, spec: dict):
+        stype = spec['type']
+        kw = {k: v for k, v in spec.items() if k != 'type'}
+        if stype == 'int':
+            return trial.suggest_int(name, **kw)
+        elif stype == 'float':
+            return trial.suggest_float(name, **kw)
+        elif stype == 'loguniform':
+            return trial.suggest_float(name, kw['low'], kw['high'], log=True)
+        elif stype == 'discrete_uniform':
+            return trial.suggest_float(name, kw['low'], kw['high'], step=kw['q'])
+        elif stype == 'categorical':
+            return trial.suggest_categorical(name, kw['choices'])
+        else:
+            raise ValueError(f"Unknown suggest type '{stype}' for param '{name}'")
 
-    optuna_setup = OptunaSetup(param, ht_param)
-    optuna_setup.logging_setup(hptuning_logger)
-    study = optuna_setup.create_study(f'hptuning_{jobtype}', storage_name)
-    study.optimize(
-        lambda trial: hparam_optim(param, ht_param, trial),
-        n_trials=ht_param['optuna']['n_trials']
-        )
+    def objective(trial: optuna.Trial) -> float:
+        trial_param = copy.deepcopy(param)
+        for key, spec in search_space.items():
+            trial_param[key] = _suggest(trial, key, spec)
+        return training(trial_param, trial=trial)
 
+    study = create_study(optuna_cfg, f'hptuning_{jobtype}', storage_name)
+    study.optimize(objective, n_trials=optuna_cfg['n_trials'])
     fp.hptuning_log(study)
 
 
@@ -249,7 +260,6 @@ def _build_param(cfg: DictConfig) -> dict:
     Hydra's DictConfig supports dict-style access, but some utilities call
     ``yaml.dump(param, …)`` which requires a plain Python dict.
     """
-    # Merge data, training, output sections into a flat dict
     param: dict = {}
     param.update(OmegaConf.to_container(cfg.data, resolve=True))
     param.update(OmegaConf.to_container(cfg.training, resolve=True))
@@ -271,6 +281,11 @@ def _build_param(cfg: DictConfig) -> dict:
     param['head_name'] = head_d.pop('name')
     param['head_cfg'] = head_d
 
+    # Optuna: study settings and search space (used only when mode=hparam_tuning)
+    optuna_d: dict = OmegaConf.to_container(cfg.optuna, resolve=True)
+    param['search_space'] = optuna_d.pop('search_space', None) or {}
+    param['optuna'] = optuna_d
+
     return param
 
 
@@ -288,9 +303,7 @@ def main(cfg: DictConfig) -> None:
     if param['mode'] in ['training', 'fine-tuning']:
         training(param)
     elif param['mode'] == 'hparam_tuning':
-        with open('hparam_tuning.yml', 'r', encoding='utf-8') as ht:
-            ht_param: dict[str, dict] = yaml.full_load(ht)
-        hparam_tuning(param, ht_param)
+        hparam_tuning(param)
     elif param['mode'] == 'feature_filtration':
         if param['feature_filter_mode'] == 'one_by_one':
             attr_filter(training, param)

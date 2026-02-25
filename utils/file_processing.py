@@ -76,14 +76,16 @@ class FileProcessing:
             if self.trial is None:
                 return
 
-            n_trials = self.ht_param['optuna']['n_trials']
+            n_trials = self.param.get('optuna', {}).get('n_trials', 100)
             trial_name = f'Trial_{self.trial.number:0{len(str(n_trials))}d}'
             os.makedirs(f'HPTuning_Recording/{self.jobtype}/{self.TIME}/{trial_name}')
             with open(f'HPTuning_Recording/{self.jobtype}/{self.TIME}/{trial_name}/model_parameters.yml', 'w', encoding = 'utf-8') as mp:
                 yaml.dump(self.param, mp, allow_unicode = True, sort_keys = False)
             if not os.path.exists(f'HPTuning_Recording/{self.jobtype}/{self.TIME}/hparam_tuning.yml'):
                 with open(f'HPTuning_Recording/{self.jobtype}/{self.TIME}/hparam_tuning.yml', 'w', encoding = 'utf-8') as mp:
-                    yaml.dump(self.ht_param, mp, allow_unicode = True, sort_keys = False)
+                    yaml.dump({'optuna': self.param.get('optuna', {}),
+                               'search_space': self.param.get('search_space', {})},
+                              mp, allow_unicode=True, sort_keys=False)
             self.plot_dir =  f'HPTuning_Recording/{self.jobtype}/{self.TIME}/{trial_name}/Plot'
             os.makedirs(self.plot_dir)
             make_subtask_dir(self.plot_dir)

@@ -4,6 +4,8 @@ defaults:
   - model/head: graph
   - training: default
   - output: default
+  - optuna: default          # Optuna study settings (sampler, pruner, n_trials …)
+  - optuna/search_space: default  # Hyperparameter search space (empty by default)
   - _self_
 
 # Operational mode
