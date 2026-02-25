@@ -1,24 +1,24 @@
-"""Graph Convolutional Network (GCN) backbone."""
+"""Graph Isomorphism Network (GIN) backbone."""
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.nn import Linear, LayerNorm, Dropout
+from torch.nn import Linear, ReLU, LayerNorm, Dropout
 
-from torch_geometric.nn import GCNConv
+from torch_geometric.nn import GINConv
 
 from models.backbones.base import BackboneBase
 
 
-class GCNBackbone(BackboneBase):
-    """GCN backbone (Kipf & Welling 2017).
+class GINBackbone(BackboneBase):
+    """GIN backbone (Xu et al. 2019 "How Powerful are Graph Neural Networks?").
 
-    Stacks GCNConv layers with optional LayerNorm and Dropout.
-    Note: GCN does not use edge features.
+    Each GINConv layer uses a 2-layer MLP as the aggregation function.
+    Note: GIN does not use edge features.
 
     Args:
         dataset: PyG dataset, used to infer num_features.
         node_dim: Dimension of all hidden and output node features.
-        num_layers: Number of GCNConv layers.
+        num_layers: Number of GINConv layers.
         use_layer_norm: Whether to apply LayerNorm after each layer.
         use_dropout: Whether to apply Dropout after each non-final layer.
         dropout_p: Dropout probability.
@@ -36,7 +36,12 @@ class GCNBackbone(BackboneBase):
 
         in_dim = dataset.num_features
         for _ in range(num_layers):
-            self.convs.append(GCNConv(in_dim, node_dim))
+            mlp = nn.Sequential(
+                Linear(in_dim, node_dim),
+                ReLU(),
+                Linear(node_dim, node_dim),
+            )
+            self.convs.append(GINConv(mlp))
             if use_layer_norm:
                 self.norms.append(LayerNorm(node_dim))
             in_dim = node_dim
