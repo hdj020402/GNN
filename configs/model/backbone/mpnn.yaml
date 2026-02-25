@@ -1,0 +1,4 @@
+name: mpnn
+node_dim: 64
+edge_nn_dim: 128
+mp_times: 3

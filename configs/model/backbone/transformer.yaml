@@ -1,0 +1,4 @@
+name: transformer
+node_dim: 64
+num_layers: 3
+heads: 4

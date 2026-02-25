@@ -1,0 +1,4 @@
+name: mace
+r_max: 5.0
+num_interactions: 2
+hidden_irreps_str: "128x0e + 128x1o"

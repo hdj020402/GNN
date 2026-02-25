@@ -5,6 +5,9 @@ import torch, optuna
 import pandas as pd
 from functools import partial
 
+import hydra
+from omegaconf import DictConfig, OmegaConf
+
 from utils.data_processing import DataProcessing
 from utils.reprocess import reprocess
 from utils.gen_model import gen_model, gen_optimizer, gen_scheduler
@@ -46,8 +49,6 @@ def training(param: dict, ht_param: dict | None = None, trial: optuna.Trial | No
     dp_timer.end()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    # if device == torch.device('cuda'):
-    #     torch.cuda.set_per_process_memory_fraction(param['GPU_memo_frac'], device = 0)
     model = gen_model(param, dataset)
     optimizer = gen_optimizer(param, model)
     scheduler = gen_scheduler(param, optimizer)
@@ -241,17 +242,49 @@ def hparam_tuning(param: dict, ht_param: dict[str, dict]) -> None:
 
     fp.hptuning_log(study)
 
-def main():
+
+def _build_param(cfg: DictConfig) -> dict:
+    """Flatten the hierarchical Hydra config into a plain dict.
+
+    All downstream utilities (DataProcessing, FileProcessing, …) expect a
+    flat dict with keys like ``param['lr']``, ``param['target_list']``, etc.
+    Hydra's DictConfig supports dict-style access, but some utilities call
+    ``yaml.dump(param, …)`` which requires a plain Python dict.
     """
-    Main function to execute the script based on the mode specified in the configuration file.
-    """
+    # Merge data, training, output sections into a flat dict
+    param: dict = {}
+    param.update(OmegaConf.to_container(cfg.data, resolve=True))
+    param.update(OmegaConf.to_container(cfg.training, resolve=True))
+    param.update(OmegaConf.to_container(cfg.output, resolve=True))
+
+    # Root-level settings
+    param['mode'] = cfg.mode
+    param['seed'] = cfg.seed
+    param['GPU_memo_frac'] = cfg.GPU_memo_frac
+    param['pretrained_model'] = cfg.pretrained_model
+
+    # Backbone: extract 'name' as the factory key; remaining keys are kwargs
+    backbone_d: dict = OmegaConf.to_container(cfg.model.backbone, resolve=True)
+    param['backbone'] = backbone_d.pop('name')
+    param['backbone_cfg'] = backbone_d
+
+    # Head: extract 'name' (matches target_type); remaining keys are kwargs
+    head_d: dict = OmegaConf.to_container(cfg.model.head, resolve=True)
+    param['head_name'] = head_d.pop('name')
+    param['head_cfg'] = head_d
+
+    return param
+
+
+@hydra.main(config_path="configs", config_name="config", version_base="1.3")
+def main(cfg: DictConfig) -> None:
+    """Entry point.  Behaviour is determined by cfg.mode."""
     TIME = time.strftime('%b_%d_%Y_%H%M%S', time.localtime())
-    with open('model_parameters.yml', 'r', encoding='utf-8') as mp:
-        param: dict = yaml.full_load(mp)
+
+    param = _build_param(cfg)
     param['time'] = TIME
 
-    seed = param['seed']
-    setup_seed(seed)
+    setup_seed(param['seed'])
     torch.use_deterministic_algorithms(True)
 
     if param['mode'] in ['training', 'fine-tuning']:
@@ -272,11 +305,14 @@ def main():
                 param['graph_attr_list'] = feature['graph_attr_list']
                 training(param)
         else:
-            raise ValueError('Wrong feature_filter_mode! Please check `model_parameters.yml`.')
+            raise ValueError('Wrong feature_filter_mode! Please check configs/data/default.yaml.')
     elif param['mode'] == 'prediction':
         prediction(param)
     else:
-        raise ValueError('Invalid mode specified in `model_parameters.yml`. Please check the configuration.')
+        raise ValueError(
+            f"Invalid mode '{param['mode']}'. Valid: training / hparam_tuning / "
+            "feature_filtration / prediction / fine-tuning"
+        )
 
 if __name__ == '__main__':
     main()

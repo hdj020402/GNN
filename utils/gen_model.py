@@ -1,42 +1,34 @@
 import torch
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from typing import Dict
-from models.readout_add_graph_feature import GraphPredictionModel, NodePredictionModel
 
-def gen_model(param: Dict, dataset, ) -> GraphPredictionModel | NodePredictionModel:
+from models.factory import create_model
+
+
+def gen_model(param: dict, dataset) -> torch.nn.Module:
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    if param['target_type'] in ['graph', 'vector']:
-        net = GraphPredictionModel(
-            dataset, param['dim_linear'],
-            param['dim_conv'],
-            len(param['target_list']),
-            param['processing_steps'],
-            param['mp_times'],
-            )
-    elif param['target_type'] == 'node':
-        net = NodePredictionModel(
-            dataset, param['dim_linear'],
-            param['dim_conv'],
-            len(param['target_list']),
-            param['mp_times'],
-            )
-    elif param['target_type'] == 'edge':
-        raise NotImplementedError('edge target type not yet implemented')
-    model = net.to(device)
+    model = create_model(
+        dataset=dataset,
+        target_type=param['target_type'],
+        num_targets=len(param['target_list']),
+        backbone_name=param.get('backbone', 'mpnn'),
+        backbone_cfg=param.get('backbone_cfg'),
+        head_cfg=param.get('head_cfg'),
+        device=device,
+    )
     return model
 
-def gen_optimizer(param: Dict, model: GraphPredictionModel | NodePredictionModel) -> torch.optim.Optimizer:
-    optimizer = getattr(torch.optim, param['optimizer'])(model.parameters(), lr = param['lr'])
-    return optimizer
 
-def gen_scheduler(param: Dict, optimizer: torch.optim.Optimizer) -> ReduceLROnPlateau | None:
-    if param['scheduler']['type'] == 'ReduceLROnPlateau':
-        scheduler = ReduceLROnPlateau(
-            optimizer, mode = 'min',
-            factor = param['scheduler']['factor'], patience = param['scheduler']['patience'],
-            min_lr = param['scheduler']['min_lr']
-            )
-    else:
-        print('No scheduler')
-        scheduler = None
-    return scheduler
+def gen_optimizer(param: dict, model: torch.nn.Module) -> torch.optim.Optimizer:
+    return getattr(torch.optim, param['optimizer'])(model.parameters(), lr=param['lr'])
+
+
+def gen_scheduler(param: dict, optimizer: torch.optim.Optimizer) -> ReduceLROnPlateau | None:
+    sched_cfg = param.get('scheduler', {})
+    if sched_cfg.get('type') == 'ReduceLROnPlateau':
+        return ReduceLROnPlateau(
+            optimizer, mode='min',
+            factor=sched_cfg['factor'],
+            patience=sched_cfg['patience'],
+            min_lr=sched_cfg['min_lr'],
+        )
+    return None

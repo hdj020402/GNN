@@ -1,0 +1,24 @@
+# Training hyperparameters.
+# These can be overridden on the command line, e.g.:
+#   python main.py training.lr=0.0005 training.epoch_num=500
+
+loss_fn: MSE              # MAE / MSE
+optimizer: Adam           # Adam / AdamW / SGD
+lr: 0.001
+
+scheduler:
+  type: ReduceLROnPlateau
+  factor: 0.7
+  patience: 20
+  min_lr: 0.00001
+
+accumulation_step: 1      # Gradient accumulation steps (1 = no accumulation)
+epoch_num: 200
+output_step: 1            # Log every N epochs
+model_save_step: 5        # Save checkpoint every N epochs
+
+early_stopping:
+  patience: 50
+  delta: 0.0
+
+criteria_list: []         # Metrics to track: MAE / MSE / RMSD / R2 / AARD / Cosine

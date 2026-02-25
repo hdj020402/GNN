@@ -1,0 +1,61 @@
+# Dataset / data-processing settings.
+# Adjust path, sdf_file, attr files, atom_type, and target_list for your dataset.
+
+# ─── Paths ─────────────────────────────────────────────────────────────────────
+path: data                   # Root dir for processed dataset cache
+sdf_file: data/all.sdf
+node_attr_file: null         # JSON file for per-node custom attributes
+edge_attr_file: null         # JSON file for per-edge custom attributes
+graph_attr_file: null        # CSV file for graph-level attributes
+vector_file: null            # CSV file for vector targets (target_type=vector)
+weight_file: null            # CSV file for per-sample loss weights
+
+# ─── Atoms ─────────────────────────────────────────────────────────────────────
+atom_type: [H, C, N, O, F]
+
+# ─── Default node / edge attributes (always computed from SDF) ─────────────────
+default_node_attr:
+  ele_type: true             # One-hot element encoding
+  atomic_number: true        # Raw atomic number (float)
+  aromatic: false            # Aromaticity flag
+  num_neighbors: true        # Degree
+  num_hs: true               # Implicit H count
+
+default_edge_attr:
+  edge_type: true            # Bond type one-hot
+  bond_length:
+    norm: true
+    power: ['r^-1']          # Distance power terms to append
+    threshold: null          # Distance cutoff for non-bonded edges (null = bonds only)
+
+# ─── Custom attributes (column names from the attr files) ──────────────────────
+node_attr_list: []
+edge_attr_list: []
+graph_attr_list: []
+
+# ─── Attribute filters (columns to drop after one-hot expansion) ───────────────
+node_attr_filter: []
+edge_attr_filter: []
+
+pos: true                    # Include 3-D coordinates (required for equivariant models)
+
+# ─── Targets ───────────────────────────────────────────────────────────────────
+target_type: graph           # graph / node / edge
+target_list: [target1]
+target_transform: null       # LN / LG / E^-x / null
+
+# ─── DataLoader ────────────────────────────────────────────────────────────────
+batch_size: 32
+num_workers: 4
+
+# ─── Split ─────────────────────────────────────────────────────────────────────
+split_method: random         # random / manual
+split_file: null             # CSV with 'split' column; used when split_method=manual
+train_size: 0.6
+val_size: 0.2
+
+# ─── Feature filtration (used when mode=feature_filtration) ───────────────────
+feature_filter_mode: one_by_one   # one_by_one / file
+
+# ─── Prediction ────────────────────────────────────────────────────────────────
+dataset_range: whole         # train / val / test / whole

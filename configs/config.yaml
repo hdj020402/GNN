@@ -1,0 +1,20 @@
+defaults:
+  - data: default
+  - model/backbone: mpnn
+  - model/head: graph
+  - training: default
+  - output: default
+  - _self_
+
+# Operational mode
+mode: training  # training / hparam_tuning / feature_filtration / prediction / fine-tuning
+
+# Global settings
+seed: 42
+GPU_memo_frac: 0.5
+pretrained_model: null   # Path to a .pth checkpoint; required for prediction / fine-tuning
+
+# Prevent Hydra from changing the working directory (already the default in 1.3)
+hydra:
+  job:
+    chdir: false

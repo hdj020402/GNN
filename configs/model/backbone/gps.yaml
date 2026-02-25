@@ -1,0 +1,4 @@
+name: gps
+node_dim: 64
+num_layers: 3
+heads: 4
