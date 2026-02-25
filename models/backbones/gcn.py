@@ -12,7 +12,11 @@ from models.backbones.base import BackboneBase
 class GCNBackbone(BackboneBase):
     """GCN backbone (Kipf & Welling 2017).
 
-    Stacks GCNConv layers with optional LayerNorm and Dropout.
+    Stacks GCNConv layers with optional shared LayerNorm and Dropout.
+    A single LayerNorm instance is shared across all layers — valid because
+    all layers output the same node_dim; each step reuses the same learned
+    scale/bias, which reduces parameters without practical loss of expressiveness.
+
     Note: GCN does not use edge features.
 
     Args:
@@ -31,22 +35,21 @@ class GCNBackbone(BackboneBase):
         self._node_dim = node_dim
 
         self.convs = nn.ModuleList()
-        self.norms = nn.ModuleList() if use_layer_norm else None
+        # Single shared LayerNorm — same dimension at every layer.
+        self.layer_norm = LayerNorm(node_dim) if use_layer_norm else None
         self.dropout = Dropout(dropout_p) if use_dropout else None
 
         in_dim = dataset.num_features
         for _ in range(num_layers):
             self.convs.append(GCNConv(in_dim, node_dim))
-            if use_layer_norm:
-                self.norms.append(LayerNorm(node_dim))
             in_dim = node_dim
 
     def forward(self, data) -> torch.Tensor:
         x = data.x
         for i, conv in enumerate(self.convs):
             x = conv(x, data.edge_index)
-            if self.norms is not None:
-                x = self.norms[i](x)
+            if self.layer_norm is not None:
+                x = self.layer_norm(x)
             if i < len(self.convs) - 1:
                 x = F.relu(x)
                 if self.dropout is not None:
