@@ -6,7 +6,7 @@ from rdkit import Chem
 from rdkit.Chem.rdchem import BondType as BT
 from typing import Dict, List
 
-from datasets.utils import one_hot
+from data.utils import one_hot
 
 
 def get_node_attr(

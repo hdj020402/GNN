@@ -10,8 +10,8 @@ from rdkit import Chem, RDLogger
 from rdkit.Chem.rdchem import BondType as BT
 RDLogger.DisableLog('rdApp.*')
 
-from datasets.attr_generator import get_adj_mat, get_edge_attr, get_node_attr
-from datasets.utils import read_attr, complete_with_dist_filter, power_dist
+from data.attr_generator import get_adj_mat, get_edge_attr, get_node_attr
+from data.utils import read_attr, complete_with_dist_filter, power_dist
 
 # definition atom and bond type for one hot repr
 _BOND_TYPE = {BT.SINGLE: 0, BT.DOUBLE: 1, BT.TRIPLE: 2, BT.AROMATIC: 3}

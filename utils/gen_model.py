@@ -1,7 +1,7 @@
 import torch
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from typing import Dict
-from nets.readout_add_graph_feature import GraphPredictionModel, NodePredictionModel
+from models.readout_add_graph_feature import GraphPredictionModel, NodePredictionModel
 
 def gen_model(param: Dict, dataset, ) -> GraphPredictionModel | NodePredictionModel:
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

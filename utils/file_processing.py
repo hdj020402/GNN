@@ -5,8 +5,8 @@ from torch_geometric.loader import DataLoader
 from typing import Dict, List, Tuple, Literal
 from copy import deepcopy
 
-from datasets.graph_dataset import Graph
-from nets.readout_add_graph_feature import GraphPredictionModel, NodePredictionModel
+from data.graph_dataset import Graph
+from models.readout_add_graph_feature import GraphPredictionModel, NodePredictionModel
 from utils.save_model import SaveModel
 from utils.post_processing import ReadLog
 from utils.utils import Timer

@@ -7,9 +7,9 @@ import os, yaml
 from torch.utils.data import random_split, Subset
 from torch_geometric.loader import DataLoader
 from typing import Dict
-from datasets.graph_dataset import Graph
-from datasets.datasets import CustomSubset
-from datasets.transform import Complete, CompleteWithDistanceFilter, PowerDistance
+from data.graph_dataset import Graph
+from data.datasets import CustomSubset
+from data.transform import Complete, CompleteWithDistanceFilter, PowerDistance
 
 class DataProcessing():
     def __init__(self, param: Dict, reprocess: bool=True) -> None:
