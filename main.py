@@ -78,14 +78,17 @@ def training(param: dict, ht_param: dict | None = None, trial: optuna.Trial | No
             for phase, loader in zip(['Train', 'Val', 'Test'], [train_loader, val_loader, test_loader]):
                 evaluation = eval_class(loader, model)
                 pred, target = evaluation.pred, evaluation.target
-                for criteria in criteria_set:
+                # For vector targets, only compute Cosine similarity
+                phase_criteria = {'Cosine'} if param['target_type'] == 'vector' else criteria_set
+                for criteria in phase_criteria:
                     errors = torch.cat([
                         getattr(calc_error(pred, target), criteria)(dim=None).unsqueeze(0),
                         getattr(calc_error(pred, target), criteria)(dim=0).view(-1)
                         ])
                     for subtask, error in zip(error_dict.keys(), errors):
                         error_dict[subtask][phase][criteria] = round(float(error), 7)
-            scheduler.step(val_loss)
+            if scheduler is not None:
+                scheduler.step(val_loss)
 
             info = json.dumps({'Epoch': epoch} | error_dict)
 

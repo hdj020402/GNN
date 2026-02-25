@@ -21,7 +21,7 @@ def gen_model(param: Dict, dataset, ) -> GraphPredictionModel | NodePredictionMo
             param['mp_times'],
             )
     elif param['target_type'] == 'edge':
-        ...   # TODO: To be implemented
+        raise NotImplementedError('edge target type not yet implemented')
     model = net.to(device)
     return model
 

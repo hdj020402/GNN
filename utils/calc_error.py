@@ -16,7 +16,7 @@ class calc_error():
         return self.MSE(dim=dim) ** 0.5
 
     def S2(self, dim: int | None) -> torch.Tensor:
-        return ((self.target - self.target.mean()) ** 2).mean(dim=dim)
+        return ((self.target - self.target.mean(dim=0)) ** 2).mean(dim=dim)
 
     def R2(self, dim: int | None) -> torch.Tensor:
         return 1 - self.MSE(dim=dim) / self.S2(dim=dim)
@@ -28,10 +28,13 @@ class calc_error():
         return (self.pred - self.target) / self.target
 
     def MRD(self):
-        if abs(max(self.RD_each())) > abs(min(self.RD_each())):
-            return max(self.RD_each())
+        rd_each = self.RD_each()
+        max_val = torch.max(rd_each).item()
+        min_val = torch.min(rd_each).item()
+        if abs(max_val) > abs(min_val):
+            return max_val
         else:
-            return min(self.RD_each())
+            return min_val
 
     def Cosine(self, dim: int | None):
         return F.cosine_similarity(self.pred, self.target, dim=1).mean(dim=dim)
