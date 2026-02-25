@@ -21,7 +21,6 @@ class DataProcessing():
         self.train_dataset, self.val_dataset, self.test_dataset, self.pred_dataset = self.split_dataset()
         self.norm_dict = self.get_mean_std()
         self.normalization()
-        self.train_dataset, self.val_dataset, self.test_dataset, self.pred_dataset = self.split_dataset()
         self.train_loader, self.val_loader, self.test_loader, self.pred_loader = self.gen_loader()
 
     def Transform(self) -> T.Compose:
@@ -148,7 +147,7 @@ class DataProcessing():
             mean, std = norm_info
             data = getattr(self.dataset.data, attr)
             scaled_attr = torch.zeros_like(data)
-            for i in range(data.shape[1]):
+            for i in range(data.shape[-1]):
                 if std[i] == 0:
                     scaled_attr[:, i] = 0.0
                 else:

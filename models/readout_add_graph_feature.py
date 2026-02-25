@@ -38,7 +38,7 @@ class GraphPredictionModel(torch.nn.Module):
             out = out.squeeze(0)
 
         out = self.set2set(out, data.batch)
-        out = torch.cat((out, data.graph_attr.view(len(out), data.graph_attr.shape[-1])), dim=1)
+        out = torch.cat((out, data.graph_attr), dim=1)
         out = F.relu(self.lin1(out))
         out = self.lin2(out)
         out = out.view(-1, self.vector_dim, self.num_tasks)   # shape = [num_graphs, vector_dim, num_tasks]
@@ -71,7 +71,7 @@ class NodePredictionModel(torch.nn.Module):
             out = out.squeeze(0)
 
         # 移除 set2set 聚合操作，直接使用节点特征进行预测
-        out = torch.cat((out, data.graph_attr[data.batch].view(len(out), data.graph_attr.shape[-1])), dim=-1)  # 连接每个节点和图属性
+        out = torch.cat((out, data.graph_attr[data.batch]), dim=-1)  # 连接每个节点和图属性
         out = F.relu(self.lin1(out))
         out = self.lin2(out)
         return out
