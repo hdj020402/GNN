@@ -31,7 +31,7 @@ class GATBackbone(BackboneBase):
         num_layers: Number of GATv2Conv layers.
         heads: Number of attention heads.
         use_edge_features: Whether to pass edge_attr into GATv2Conv.
-        use_layer_norm: Whether to apply shared LayerNorm after each layer.
+        use_layer_norm: Whether to apply independent LayerNorm after each layer.
         use_dropout: Whether to apply Dropout on node features between layers.
         dropout_p: Dropout probability for node features.
         attn_dropout: Dropout probability on attention coefficients (inside GATv2Conv).
@@ -49,8 +49,10 @@ class GATBackbone(BackboneBase):
         edge_dim = dataset.num_edge_features if use_edge_features else None
 
         self.convs = nn.ModuleList()
-        # Single shared LayerNorm — node_dim is constant at every layer.
-        self.layer_norm = LayerNorm(node_dim) if use_layer_norm else None
+        # Independent LayerNorm per layer — each layer learns its own scale/shift.
+        self.norms = nn.ModuleList(
+            [LayerNorm(node_dim) for _ in range(num_layers)]
+        ) if use_layer_norm else None
         self.dropout = Dropout(dropout_p) if use_dropout else None
 
         in_dim = dataset.num_features
@@ -69,8 +71,8 @@ class GATBackbone(BackboneBase):
 
         for i, conv in enumerate(self.convs):
             x = conv(x, edge_index, edge_attr=edge_attr)
-            if self.layer_norm is not None:
-                x = self.layer_norm(x)
+            if self.norms is not None:
+                x = self.norms[i](x)
             if i < len(self.convs) - 1:
                 x = F.elu(x)   # ELU per GAT paper — intentional, not ReLU
                 if self.dropout is not None:

@@ -7,9 +7,13 @@ from models.backbones.mpnn import MPNNBackbone
 from models.backbones.gcn import GCNBackbone
 from models.backbones.gat import GATBackbone
 from models.backbones.gin import GINBackbone
-from models.backbones.transformer import GraphTransformerBackbone, GPSBackbone
+from models.backbones.transformer import GraphTransformerBackbone
+from models.backbones.gps import GPSBackbone
 from models.backbones.schnet import SchNetBackbone
+from models.backbones.painn import PaiNNBackbone
+from models.backbones.mace import MACEBackbone
 from models.backbones.dimenet import DimeNetPlusPlusBackbone
+# MACEBackbone requires: pip install e3nn mace-torch
 from models.heads.graph_head import GraphPredictionHead
 from models.heads.node_head import NodePredictionHead
 
@@ -23,8 +27,9 @@ BACKBONE_MAP: dict[str, type[BackboneBase]] = {
     'gps': GPSBackbone,
     # Equivariant models — require data.z (atomic numbers) and data.pos
     'schnet': SchNetBackbone,
+    'painn': PaiNNBackbone,
+    'mace': MACEBackbone,
     'dimenet++': DimeNetPlusPlusBackbone,
-    # 'mace': MACEBackbone  — requires `pip install mace-torch`
 }
 
 HEAD_MAP = {
@@ -43,6 +48,8 @@ _DEFAULT_BACKBONE_CFG: dict[str, dict] = {
     'transformer': {'node_dim': 64, 'num_layers': 3, 'heads': 4},
     'gps':         {'node_dim': 64, 'num_layers': 3, 'heads': 4},
     'schnet':      {'hidden_channels': 128, 'num_interactions': 6},
+    'painn':       {'n_atom_basis': 128, 'n_interactions': 3},
+    'mace':        {'r_max': 5.0, 'num_interactions': 2, 'hidden_irreps_str': '128x0e + 128x1o'},
     'dimenet++':   {'hidden_channels': 128, 'num_blocks': 4},
 }
 
@@ -53,7 +60,7 @@ _DEFAULT_HEAD_CFG: dict[str, dict] = {
 }
 
 # Equivariant models that use data.z / data.pos instead of data.x
-EQUIVARIANT_BACKBONES = {'schnet', 'dimenet++', 'mace'}
+EQUIVARIANT_BACKBONES = {'schnet', 'painn', 'mace', 'dimenet++'}
 
 
 def create_model(
@@ -88,6 +95,7 @@ def create_model(
             f"Unknown target_type '{target_type}'. Available: {list(HEAD_MAP.keys())}"
         )
 
+    backbone_cls = BACKBONE_MAP[backbone_name]
     bb_cfg = dict(_DEFAULT_BACKBONE_CFG[backbone_name])
     if backbone_cfg:
         bb_cfg.update(backbone_cfg)
@@ -99,7 +107,7 @@ def create_model(
     # Equivariant models don't need dataset for feature dims (they use z/pos),
     # so we pass None as dataset.
     backbone_dataset = None if backbone_name in EQUIVARIANT_BACKBONES else dataset
-    backbone = BACKBONE_MAP[backbone_name](backbone_dataset, **bb_cfg)
+    backbone = backbone_cls(backbone_dataset, **bb_cfg)
     head = HEAD_MAP[target_type](backbone.output_dim, dataset, num_targets, **hd_cfg)
     model = UnifiedModel(backbone, head)
 

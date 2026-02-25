@@ -3,7 +3,9 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
+from torch_geometric.nn import radius_graph
 from torch_geometric.nn.models import DimeNetPlusPlus
+from torch_geometric.nn.models.dimenet import triplets
 
 from models.backbones.base import BackboneBase
 
@@ -15,9 +17,6 @@ class _DimeNetPlusPlusNodeEncoder(DimeNetPlusPlus):
     def forward(self, z: Tensor, pos: Tensor, batch=None) -> Tensor:
         """Run DimeNet++ but return accumulated per-node embeddings P
         instead of scatter(P, batch)."""
-        from torch_geometric.nn.models.dimenet import triplets
-        from torch_geometric.utils import radius_graph
-
         edge_index = radius_graph(
             pos, r=self.cutoff, batch=batch,
             max_num_neighbors=self.max_num_neighbors

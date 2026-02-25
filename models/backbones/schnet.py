@@ -1,79 +1,100 @@
-"""SchNet backbone — E(3)-invariant continuous-filter CNN."""
-import torch
-import torch.nn as nn
+"""SchNet backbone for molecular property prediction.
 
-from torch_geometric.nn.models.schnet import (
-    GaussianSmearing, InteractionBlock, RadiusInteractionGraph
-)
+Reference: "SchNet: A continuous-filter convolutional neural network for
+           modeling quantum interactions", Schütt et al. 2017.
+           https://arxiv.org/abs/1706.08566
+
+Wraps ``torch_geometric.nn.models.SchNet`` and overrides the forward pass
+to return per-node embeddings instead of the graph-level energy scalar.
+This mirrors the DimeNet++ backbone approach.
+
+**Interface differences from standard backbones:**
+- Uses ``data.z`` (atomic numbers as ``torch.long``) for initial embedding.
+- Uses ``data.pos`` (3-D Cartesian coordinates in Ångstrom) for distances.
+- Builds its own radius graph internally; ``data.edge_index`` / ``data.edge_attr``
+  from the data pipeline are **ignored**.
+- ``data.x`` is NOT used.
+"""
+import torch
+from torch import Tensor
+
+from torch_geometric.nn import radius_graph
+from torch_geometric.nn.models import SchNet as _SchNet
 
 from models.backbones.base import BackboneBase
 
 
-class SchNetBackbone(BackboneBase):
-    """SchNet backbone (Schütt et al. 2017, "SchNet: A Continuous-filter
-    Convolutional Neural Network for Modeling Quantum Interactions").
+class _SchNetNodeEncoder(_SchNet):
+    """Subclass of PyG's SchNet that returns per-node embeddings.
 
-    SchNet is E(3)-invariant — the output scalar energies (or node embeddings)
-    are unchanged under rotation, translation, and reflection. It achieves this
-    by using interatomic *distances* (scalars) as inputs, discarding directional
-    information entirely.
-
-    Key differences from MPNN/GCN/GIN:
-      - Input: data.z (atomic numbers, dtype=long) + data.pos (3D coordinates).
-        Does NOT use data.x or data.edge_attr.
-      - Edges are built internally from a radial cutoff (not from the SDF bonds).
-      - Edge "features" are radial basis functions of interatomic distances.
-
-    This backbone borrows SchNet's internal components (embedding, interaction
-    blocks) from PyG and runs them, returning node-level embeddings before the
-    readout layer. The graph-level prediction is delegated to the Head.
-
-    Args:
-        dataset: PyG dataset (unused for dim inference; SchNet uses z/pos).
-        hidden_channels: Node embedding dimension throughout the network.
-        num_filters: Width of the continuous filter networks.
-        num_interactions: Number of interaction (message-passing) blocks.
-        num_gaussians: Number of Gaussian basis functions for distance encoding.
-        cutoff: Radial cutoff in Angstroms for building the interaction graph.
+    PyG's SchNet.forward() scatters node features to graph-level energy.
+    We override to return the node embeddings after all interaction blocks,
+    before the final linear layers and aggregation.
     """
 
-    def __init__(self, dataset=None, hidden_channels: int = 128,
-                 num_filters: int = 128, num_interactions: int = 6,
-                 num_gaussians: int = 50, cutoff: float = 10.0):
-        super().__init__()
-        self._hidden_channels = hidden_channels
-
-        self.embedding = nn.Embedding(100, hidden_channels)
-        self.interaction_graph = RadiusInteractionGraph(cutoff, max_num_neighbors=32)
-        self.distance_expansion = GaussianSmearing(0.0, cutoff, num_gaussians)
-
-        self.interactions = nn.ModuleList([
-            InteractionBlock(hidden_channels, num_gaussians, num_filters, cutoff)
-            for _ in range(num_interactions)
-        ])
-
-    def forward(self, data) -> torch.Tensor:
-        """Forward pass.
-
-        Args:
-            data: PyG Data with:
-                - data.z: atomic numbers [num_atoms], dtype=long
-                - data.pos: 3D positions [num_atoms, 3], dtype=float
-                - data.batch: batch index [num_atoms]
-
-        Returns:
-            torch.Tensor: Node embeddings [num_atoms, hidden_channels].
-        """
-        z, pos, batch = data.z, data.pos, data.batch
+    def forward(self, z: Tensor, pos: Tensor, batch=None) -> Tensor:
+        batch = torch.zeros_like(z) if batch is None else batch
 
         h = self.embedding(z)
-        edge_index, edge_weight = self.interaction_graph(pos, batch)
+
+        edge_index = radius_graph(
+            pos, r=self.cutoff, batch=batch,
+            max_num_neighbors=self.max_num_neighbors,
+            flow='source_to_target',
+        )
+        row, col = edge_index
+        edge_weight = (pos[row] - pos[col]).norm(dim=-1)
         edge_attr = self.distance_expansion(edge_weight)
 
         for interaction in self.interactions:
             h = h + interaction(h, edge_index, edge_weight, edge_attr)
 
-        return h  # [num_atoms, hidden_channels] — before SchNet's lin1/lin2 readout
+        return h  # [N, hidden_channels]
+
+
+class SchNetBackbone(BackboneBase):
+    """SchNet backbone.
+
+    E(3)-invariant network using continuous-filter convolutions over interatomic
+    distances. Does not use directional (vector) information, so it is invariant
+    under rotations and reflections but cannot distinguish chiral structures.
+
+    Args:
+        dataset: PyG dataset (unused; present for API consistency).
+        hidden_channels: Node feature dimension.
+        num_filters: Filter width inside CFConv.
+        num_interactions: Number of interaction blocks (depth).
+        num_gaussians: Number of Gaussian basis functions.
+        cutoff: Interaction cutoff radius in Ångstrom.
+        max_num_neighbors: Maximum neighbours per atom (caps memory use).
+    """
+
+    def __init__(self, dataset=None, hidden_channels: int = 128,
+                 num_filters: int = 128, num_interactions: int = 6,
+                 num_gaussians: int = 50, cutoff: float = 10.0,
+                 max_num_neighbors: int = 32):
+        super().__init__()
+        self._hidden_channels = hidden_channels
+
+        self.model = _SchNetNodeEncoder(
+            hidden_channels=hidden_channels,
+            num_filters=num_filters,
+            num_interactions=num_interactions,
+            num_gaussians=num_gaussians,
+            cutoff=cutoff,
+            max_num_neighbors=max_num_neighbors,
+        )
+
+    def forward(self, data) -> torch.Tensor:
+        """Forward pass.
+
+        Args:
+            data: PyG Data with ``z`` (long [N]) and ``pos`` (float [N, 3]).
+
+        Returns:
+            torch.Tensor: Node embeddings ``[N, hidden_channels]``.
+        """
+        return self.model(data.z, data.pos, data.batch)
 
     @property
     def output_dim(self) -> int:

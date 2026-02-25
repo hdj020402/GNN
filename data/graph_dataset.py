@@ -210,6 +210,11 @@ class Graph(InMemoryDataset):
                                       )
             # edge index(adj matrix)
             edge_index = get_adj_mat(mol)
+            # atomic numbers as long tensor (required by equivariant backbones)
+            z = torch.tensor(
+                [atom.GetAtomicNum() for atom in mol.GetAtoms()],
+                dtype=torch.long
+            )
             # target
             y = target[i]
             # weight
@@ -219,8 +224,8 @@ class Graph(InMemoryDataset):
             # graph attr
             g_a = graph_attr[i]
             # create mol graph
-            data = Data(x=x, pos=pos, edge_index=edge_index,
-                        edge_attr=edge_attr, y=y, graph_attr=g_a, weight = weight,
+            data = Data(x=x, z=z, pos=pos, edge_index=edge_index,
+                        edge_attr=edge_attr, y=y, graph_attr=g_a, weight=weight,
                         name=name, idx=i)
             data = complete_with_dist_filter(data, self.dist_thresh)
             for length_type in self.power_list:

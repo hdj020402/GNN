@@ -20,7 +20,7 @@ class GINBackbone(BackboneBase):
         dataset: PyG dataset, used to infer num_features.
         node_dim: Dimension of all hidden and output node features.
         num_layers: Number of GINConv layers.
-        use_layer_norm: Whether to apply shared LayerNorm after each layer.
+        use_layer_norm: Whether to apply independent LayerNorm after each layer.
         use_dropout: Whether to apply Dropout after each non-final layer.
         dropout_p: Dropout probability.
     """
@@ -32,8 +32,10 @@ class GINBackbone(BackboneBase):
         self._node_dim = node_dim
 
         self.convs = nn.ModuleList()
-        # Single shared LayerNorm — node_dim is constant at every layer.
-        self.layer_norm = LayerNorm(node_dim) if use_layer_norm else None
+        # Independent LayerNorm per layer — each layer learns its own scale/shift.
+        self.norms = nn.ModuleList(
+            [LayerNorm(node_dim) for _ in range(num_layers)]
+        ) if use_layer_norm else None
         self.dropout = Dropout(dropout_p) if use_dropout else None
 
         in_dim = dataset.num_features
@@ -50,8 +52,8 @@ class GINBackbone(BackboneBase):
         x = data.x
         for i, conv in enumerate(self.convs):
             x = conv(x, data.edge_index)
-            if self.layer_norm is not None:
-                x = self.layer_norm(x)
+            if self.norms is not None:
+                x = self.norms[i](x)
             if i < len(self.convs) - 1:
                 x = F.relu(x)
                 if self.dropout is not None:
