@@ -1,6 +1,5 @@
 import torch
 import torch.nn.functional as F
-import torch_geometric.transforms as T
 import numpy as np
 import os, yaml
 
@@ -8,14 +7,21 @@ from torch.utils.data import random_split, Subset
 from torch_geometric.loader import DataLoader
 from typing import Dict
 from data.graph_dataset import Graph
-from data.datasets import CustomSubset
-from data.transform import Complete, CompleteWithDistanceFilter, PowerDistance
+
+
+# Keys compared between current and cached params to decide if reprocessing is needed.
+_REPROCESS_KEYS = [
+    'sdf_file', 'node_attr_file', 'edge_attr_file', 'graph_attr_file',
+    'weight_file', 'atom_type', 'default_node_attr', 'default_edge_attr',
+    'node_attr_list', 'edge_attr_list', 'graph_attr_list',
+    'node_attr_filter', 'edge_attr_filter', 'pos', 'target_list', 'target_transform',
+]
+
 
 class DataProcessing():
-    def __init__(self, param: Dict, reprocess: bool=True) -> None:
+    def __init__(self, param: Dict) -> None:
         self.param = param
-        self.transform = self.Transform()
-        self.reprocess = reprocess
+        self.reprocess = self._should_reprocess()
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.dataset = self.gen_dataset()
         self.train_dataset, self.val_dataset, self.test_dataset, self.pred_dataset = self.split_dataset()
@@ -23,21 +29,22 @@ class DataProcessing():
         self.normalization()
         self.train_loader, self.val_loader, self.test_loader, self.pred_loader = self.gen_loader()
 
-    def Transform(self) -> T.Compose:
-        # transforms = [CompleteWithDistanceFilter(distance_threshold=self.param['default_edge_attr']['bond_length']['threshold'])]
-        # for length_type in self.param['default_edge_attr']['bond_length']['power']:
-        #     length_type: str
-        #     power = float(length_type.split('^')[1])
-        #     transforms.append(PowerDistance(
-        #         norm=False, power=power, distance_threshold=self.param['default_edge_attr']['bond_length']['threshold']))
-        # transform = T.Compose(transforms)
-        transform = None
-        return transform
+    def _should_reprocess(self) -> bool:
+        """Return True if dataset-affecting params changed since last processing."""
+        try:
+            cache = os.path.join(self.param['path'], 'processed/model_parameters.yml')
+            with open(cache, 'r', encoding='utf-8') as f:
+                param_pre: dict = yaml.full_load(f)
+            current  = {k: self.param[k] for k in _REPROCESS_KEYS if k in self.param}
+            previous = {k: param_pre[k] for k in _REPROCESS_KEYS if k in param_pre}
+            return current != previous
+        except Exception:
+            return True
 
     def gen_dataset(self) -> Graph:
         dataset = Graph(
             root = self.param['path'],
-            transform = self.transform,
+            transform = None,
             sdf_file = self.param['sdf_file'],
             node_attr_file = self.param['node_attr_file'],
             edge_attr_file = self.param['edge_attr_file'],
@@ -158,20 +165,12 @@ class DataProcessing():
         else:
             mean, std = self.norm_dict['y']
             self.dataset.data.y = (self.dataset.y - mean) / std
-        # if self.param['graph_attr_list']:
-        #     data_scaled = (torch.cat([self.dataset.graph_attr, self.dataset.y], dim = 1) - self.mean) / self.std
-        #     self.dataset.data.graph_attr = data_scaled[:, 0:len(self.param['graph_attr_list'])]
-        #     self.dataset.data.y = data_scaled[:, len(self.param['graph_attr_list']):len(self.param['graph_attr_list']) + len(self.param['target_list'])]
-        # else:
-        #     self.dataset.data.y = (self.dataset.y - self.mean) / self.std
 
     def get_mean_std(self) -> dict[str, tuple[torch.Tensor, torch.Tensor]]:
         if self.param['mode'] == 'prediction':
             pretrained_model = self.param['pretrained_model']
             state_dict: Dict = torch.load(pretrained_model, map_location=torch.device('cpu'))
             norm_dict = state_dict['norm']
-            # mean: torch.Tensor = state_dict['mean']
-            # std: torch.Tensor = state_dict['std']
         else:
             train_dataset = self.dataset[self.train_dataset.indices]
             norm_dict = {}
@@ -188,18 +187,4 @@ class DataProcessing():
                     norm_dict[attr] = (mean, std)
                 except RuntimeError:
                     pass
-            # mean_y = train_dataset.y.view(
-            #     -1, train_dataset.y.shape[-1]).mean(dim=0)
-            # std_y = train_dataset.y.view(
-            #     -1, train_dataset.y.shape[-1]).std(dim=0, unbiased=False)
-            # if self.param['graph_attr_list']:
-            #     mean_graph = train_dataset.graph_attr.view(
-            #         -1, train_dataset.graph_attr.shape[-1]).mean(dim=0)
-            #     std_graph = train_dataset.graph_attr.view(
-            #         -1, train_dataset.graph_attr.shape[-1]).std(dim=0, unbiased=False)
-            #     mean = torch.cat([mean_graph, mean_y])
-            #     std = torch.cat([std_graph, std_y])
-            # else:
-            #     mean = mean_y
-            #     std = std_y
         return norm_dict

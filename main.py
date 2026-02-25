@@ -9,7 +9,6 @@ from omegaconf import DictConfig, OmegaConf
 from torch.utils.tensorboard import SummaryWriter
 
 from utils.data_processing import DataProcessing
-from utils.reprocess import reprocess
 from utils.gen_model import gen_model, gen_optimizer, gen_scheduler
 from utils.setup_seed import setup_seed
 from utils.plot import scatter
@@ -39,7 +38,7 @@ def training(param: dict, trial: optuna.Trial | None = None) -> float:
 
     dp_timer = Timer()
     dp_timer.start()
-    DATA = DataProcessing(param, reprocess = reprocess(param))
+    DATA = DataProcessing(param)
     dataset = DATA.dataset
     norm_dict = DATA.norm_dict
     train_loader = DATA.train_loader
@@ -149,7 +148,7 @@ def prediction(param: dict) -> None:
 
     dp_timer = Timer()
     dp_timer.start()
-    DATA = DataProcessing(param, reprocess = reprocess(param))
+    DATA = DataProcessing(param)
     dataset = DATA.dataset
     norm_dict = DATA.norm_dict
     train_loader = DATA.train_loader

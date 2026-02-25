@@ -6,7 +6,6 @@ from typing import Dict, List, Tuple, Literal
 from copy import deepcopy
 
 from data.graph_dataset import Graph
-from models.readout_add_graph_feature import GraphPredictionModel, NodePredictionModel
 from utils.save_model import SaveModel
 from utils.post_processing import ReadLog
 from utils.utils import Timer
@@ -124,7 +123,7 @@ class FileProcessing:
         test_loader: DataLoader,
         pred_loader: DataLoader,
         norm_dict: dict[str, tuple[torch.Tensor, torch.Tensor]],
-        model: GraphPredictionModel | NodePredictionModel,
+        model: torch.nn.Module,
         timer: Timer
         ) -> None:
         days, hours, minutes, seconds = timer.get_tot_time()
