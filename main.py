@@ -8,18 +8,17 @@ import hydra
 from omegaconf import DictConfig, OmegaConf
 from torch.utils.tensorboard import SummaryWriter
 
-from utils.data_processing import DataProcessing
+from data.data_processing import DataProcessing
 from utils.gen_model import gen_model, gen_optimizer, gen_scheduler
 from utils.setup_seed import setup_seed
-from utils.plot import scatter
-from utils.plot_model import scatterFromModel
+from utils.visualization import scatter, scatterFromModel
 from utils.evaluation import Evaluation
-from utils.calc_error import calc_error
+from utils.metrics import Metrics
 from utils.optuna_setup import create_study, redirect_optuna_log
 from utils.train import train, validate
 from utils.file_processing import FileProcessing
 from utils.save_model import SaveModel
-from utils.utils import Timer
+from utils.timer import Timer
 from utils.gpu_monitor import GPUMonitor
 
 def training(param: dict, trial: optuna.Trial | None = None) -> float:
@@ -80,10 +79,11 @@ def training(param: dict, trial: optuna.Trial | None = None) -> float:
             for phase, loader in zip(['Train', 'Val', 'Test'], [train_loader, val_loader, test_loader]):
                 evaluation = eval_class(loader, model)
                 pred, target = evaluation.pred, evaluation.target
+                err = Metrics(pred, target)
                 for criteria in phase_criteria:
                     errors = torch.cat([
-                        getattr(calc_error(pred, target), criteria)(dim=None).unsqueeze(0),
-                        getattr(calc_error(pred, target), criteria)(dim=0).view(-1)
+                        getattr(err, criteria)(dim=None).unsqueeze(0),
+                        getattr(err, criteria)(dim=0).view(-1)
                         ])
                     for subtask, error in zip(error_dict.keys(), errors):
                         error_dict[subtask][phase][criteria] = round(float(error), 7)
@@ -179,10 +179,11 @@ def prediction(param: dict) -> None:
     pred, target = evaluation.pred, evaluation.target
     gpu_monitor.stop()
 
+    err = Metrics(pred, target)
     for criteria in criteria_list:
         errors = torch.cat([
-            getattr(calc_error(pred, target), criteria)(dim=None).unsqueeze(0),
-            getattr(calc_error(pred, target), criteria)(dim=0)
+            getattr(err, criteria)(dim=None).unsqueeze(0),
+            getattr(err, criteria)(dim=0)
             ])
         for subtask, error in zip(error_dict.keys(), errors):
             error_dict[subtask]['Pred'][criteria] = round(float(error), 7)

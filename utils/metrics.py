@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 
-class calc_error():
+class Metrics():
     def __init__(self, pred: torch.Tensor, target: torch.Tensor) -> None:
         self.pred = pred
         self.target = target

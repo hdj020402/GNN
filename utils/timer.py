@@ -14,18 +14,18 @@ class Timer:
     def get_tot_time(self) -> tuple[int, int, int, float]:
         if self.start_time is None or self.end_time is None:
             return (-1, -1, -1, -1.0)
-        
+
         tot_time = self.end_time - self.start_time
-        
+
         return Timer.convert_time(tot_time)
 
     def get_average_time(self, divisor: int) -> tuple[int, int, int, float]:
         if divisor <= 0:
             raise ValueError("Divisor must be greater than 0.")
-            
+
         if self.start_time is None or self.end_time is None:
             return (-1, -1, -1, -1.0)
-        
+
         tot_time = self.end_time - self.start_time
         avg_time = tot_time / divisor
 

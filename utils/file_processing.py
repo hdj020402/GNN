@@ -7,8 +7,29 @@ from copy import deepcopy
 
 from data.graph_dataset import Graph
 from utils.save_model import SaveModel
-from utils.post_processing import ReadLog
-from utils.utils import Timer
+from utils.timer import Timer
+
+
+class LogParser:
+    """Reads a training log file to support training resumption."""
+
+    def __init__(self, log_file: str, param: dict) -> None:
+        self.log_file = log_file
+        self.param = param
+
+    def restart(self, start_epoch: int) -> list[str]:
+        """Return log lines for epochs before start_epoch (used when resuming)."""
+        with open(self.log_file) as lf:
+            text = lf.readlines()
+        pre_log_text = []
+        i = 1
+        for line in text:
+            if i == start_epoch:
+                break
+            if '"Epoch"' in line:
+                pre_log_text.append(line)
+                i += 1
+        return pre_log_text
 
 def setup_logger(logger_name: str, log_file: str, level=logging.INFO) -> logging.Logger:
     logger = logging.getLogger(logger_name)
@@ -185,7 +206,7 @@ class FileProcessing:
                 pre_TIME = os.path.basename(pre_dir)
                 pre_log_file = os.path.join(pre_dir, f'training_{pre_TIME}.log')
                 shutil.copy(pre_log_file, f'Training_Recording/{self.jobtype}/{self.TIME}/pre.log')
-                pre_log_info = ReadLog(pre_log_file, self.param)
+                pre_log_info = LogParser(pre_log_file, self.param)
                 pre_log_text = pre_log_info.restart(start_epoch)
                 with open(self.log_file, 'a') as lf:
                     lf.writelines(pre_log_text)
