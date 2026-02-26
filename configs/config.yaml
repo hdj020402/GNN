@@ -9,7 +9,7 @@ defaults:
   - _self_
 
 # Operational mode
-mode: training  # training / hparam_tuning / feature_filtration / prediction / fine-tuning
+mode: training  # training / hparam_tuning / prediction / fine-tuning
 
 # Global settings
 seed: 42

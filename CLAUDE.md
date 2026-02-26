@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a PyTorch-based Graph Neural Network (GNN) toolkit for training and evaluating models on molecular graph data. The system supports multiple operational modes: training, hyperparameter tuning, feature filtration, prediction, and fine-tuning.
+This is a PyTorch-based Graph Neural Network (GNN) toolkit for training and evaluating models on molecular graph data. The system supports multiple operational modes: training, hyperparameter tuning, prediction, and fine-tuning.
 
 ## Setup & Installation
 
@@ -21,7 +21,6 @@ pip install -r envs/requirements-cpu.txt
 **Parameter Configuration:**
 1. Create `model_parameters.yml` in the `gnn/` directory (copy from `model_parameters_example.yml`)
 2. Optionally create `hparam_tuning.yml` for hyperparameter tuning mode
-3. Optionally create `feature_filter.yml` for feature filtration
 
 ## Running the System
 
@@ -35,7 +34,6 @@ python main.py
 The behavior is determined by the `mode` setting in `model_parameters.yml`:
 - `training`: Train a model with fixed parameters
 - `hparam_tuning`: Optimize hyperparameters using Optuna
-- `feature_filtration`: Test different feature combinations
 - `prediction`: Generate predictions using a pre-trained model
 - `fine-tuning`: Continue training a pre-trained model on new data
 
@@ -115,7 +113,6 @@ gnn/
 ├── docs/             # Documentation
 ├── model_parameters.yml          # Main configuration
 ├── hparam_tuning.yml            # Hyperparameter tuning config (optional)
-├── feature_filter.yml           # Feature filtering config (optional)
 ├── Training_Recording/          # Output: training results
 ├── HPTuning_Recording/          # Output: hyperparameter tuning results
 ├── Prediction_Recording/        # Output: predictions
@@ -136,12 +133,6 @@ When evaluating predictions, targets must be denormalized using the normalizatio
 - Set `GPU_memo_frac` in parameters to control per-process GPU memory fraction (0-1)
 - CUBLAS workspace config: `CUBLAS_WORKSPACE_CONFIG=:4096:8` (set at module import)
 - PYTHONHASHSEED set to 0 for reproducibility
-
-### Feature Filtering
-
-Supports two approaches:
-- `one_by_one`: Leave-one-out feature elimination - removes each feature sequentially and trains
-- `file`: Manual feature combinations specified in `feature_filter.yml` (not yet fully implemented)
 
 ### Optuna Integration
 

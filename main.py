@@ -15,7 +15,6 @@ from utils.plot import scatter
 from utils.plot_model import scatterFromModel
 from utils.evaluation import Evaluation
 from utils.calc_error import calc_error
-from utils.attr_filter import attr_filter
 from utils.optuna_setup import create_study, redirect_optuna_log
 from utils.train import train, validate
 from utils.file_processing import FileProcessing
@@ -303,25 +302,12 @@ def main(cfg: DictConfig) -> None:
         training(param)
     elif param['mode'] == 'hparam_tuning':
         hparam_tuning(param)
-    elif param['mode'] == 'feature_filtration':
-        if param['feature_filter_mode'] == 'one_by_one':
-            attr_filter(training, param)
-        elif param['feature_filter_mode'] == 'file':
-            with open('feature_filter.yml') as ff:
-                feature_dict: dict = yaml.full_load(ff)
-            for idx, feature in feature_dict.items():
-                param['node_attr_list'] = feature['node_attr_list']
-                param['edge_attr_list'] = feature['edge_attr_list']
-                param['graph_attr_list'] = feature['graph_attr_list']
-                training(param)
-        else:
-            raise ValueError('Wrong feature_filter_mode! Please check configs/data/default.yaml.')
     elif param['mode'] == 'prediction':
         prediction(param)
     else:
         raise ValueError(
             f"Invalid mode '{param['mode']}'. Valid: training / hparam_tuning / "
-            "feature_filtration / prediction / fine-tuning"
+            "prediction / fine-tuning"
         )
 
 if __name__ == '__main__':

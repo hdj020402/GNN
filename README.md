@@ -41,16 +41,11 @@ conda create -n <newenv> python=3.12
 3. Modify the parameters to meet your demand. Each parameter is explained as follows:
     - General
         - `jobtype`: the type of your job, can be any words
-        - `mode`: corresponding to different functions; choose among `training`, `hparam_tuning`, `feature_filtration`, `prediction` and `fine-tuning`
+        - `mode`: corresponding to different functions; choose among `training`, `hparam_tuning`, `prediction` and `fine-tuning`
             - `training`: train a model with given parameters
             - `hparam_tuning`: train multiple models with different combinations of hyper-parameters in order to choose the best one according to models' performance; to use this function, file `hparam_tuning.yml` is a must, and the content of this file will be explained in detail in [point 4](#hparam_tuning)
-            - `feature_filtration`: train multiple models with different combinations of features in order to choose the best one according to models' performance
             - `prediction`: predict the target in a new dataset with a pre-trained model
             - `fine-tuning`: perform training with a pre-trained model on a different dataset
-        - `feature_filter_mode`: method of screening the best combination of features; choose among `one_by_one`, `file` and `null`
-            - `one_by_one`: `node_attr_list`, `edge_attr_list` and `graph_attr_list` will be merged into a new list, and each time, one feature will be removed from the new list to form a new feature combination
-            - `file`: not implemented; you can record multiple combination of features you want to test in `feature_filter.yml`, and train the models one by one; to use this function, file `feature_filter.yml` is a must, and the content of this file will be explained in detail in [point 5](#feature_filtration)
-            - `null`: no screening task
         - `seed`: integer, to generate reproducible random splitted datasets and prediction results
         - `GPU_memo_frac`: decimal, the proportion of GPU memory (or CUDA memory) that can be allocated and used by a single process
     - Dataset (relative paths are recommended)
@@ -184,9 +179,6 @@ conda create -n <newenv> python=3.12
         - `hparam`: must be one of the keys in `model_parameters.yml`
             - `type`: choose among `int`, `float`, `uniform`, `discrete_uniform`, `loguniform` and `categorical`
             - `kwargs`: users can modify whichever parameter in the function by providing `keyword: argument`
-<a id="feature_filtration"></a>
-
-5. `feature_filtration_example.yml` gives an example of the feature_filtration file.
 
 ### Step 4. Run your model
 

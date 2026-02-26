@@ -1,7 +1,6 @@
 ### General ###
 jobtype: viscosity
-mode: training   # training / hparam_tuning / feature_filtration / prediction / fine-tuning
-feature_filter_mode: one_by_one   # one_by_one / file / null
+mode: training   # training / hparam_tuning / prediction / fine-tuning
 seed: 42
 GPU_memo_frac: 0.5
 

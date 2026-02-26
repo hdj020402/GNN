@@ -14,6 +14,5 @@ database/
 data_prep/
 model_parameters.yml
 hparam_tuning.yml
-feature_filter.yml
 test_data/
 docs/
