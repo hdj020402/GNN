@@ -5,7 +5,6 @@ import os, yaml
 
 from torch.utils.data import random_split, Subset
 from torch_geometric.loader import DataLoader
-from typing import Dict
 
 from omegaconf import OmegaConf
 

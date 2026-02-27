@@ -1,4 +1,4 @@
-from typing import Union, Literal
+from typing import Literal
 from torch_geometric.loader import DataLoader
 import torch
 import torch.nn.functional as F
@@ -36,7 +36,7 @@ def unweighted_loss(
 def train(
     model: torch.nn.Module,
     train_loader: DataLoader,
-    optimizer: Union[AdamW, SGD, Adam],
+    optimizer: AdamW | SGD | Adam,
     loss_fn: Literal['MAE', 'MSE', 'Cosine'],
     device: torch.device,
     accumulation_steps: int = 1,

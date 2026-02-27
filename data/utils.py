@@ -1,5 +1,4 @@
 import os, json, pickle, torch
-from typing import Dict, Optional
 from torch_geometric.data import Data
 
 '''utils for gnn attribute.
@@ -8,11 +7,11 @@ from torch_geometric.data import Data
 def one_hot(hot_idx: int, total_len: int):
     '''generate one hot repr according to selected index and
     total length.
-    
+
     Args:
         hot_idx: the index chosen to be 1.
         total_len: how long should the repr be.
-        
+
     Return:
         one_hot_list: [0, 0, 1, 0] for hot_idx=2, total_len=4.
     '''
@@ -22,20 +21,20 @@ def one_hot(hot_idx: int, total_len: int):
             one_hot_list.append(1)
         else:
             one_hot_list.append(0)
-    
+
     return one_hot_list
 
-def read_attr(file: Optional[str], attr_type: str, length: int) -> Optional[Dict]:
+def read_attr(file: str | None, attr_type: str, length: int) -> dict | None:
     if file is None:
         attr_dict = None
     else:
         _, ext = os.path.splitext(file)
         if ext == '.json':
             with open(file, 'r') as f:
-                attr_dict: Dict = json.load(f)
+                attr_dict: dict = json.load(f)
         elif ext == '.pkl':
             with open(file, 'rb') as f:
-                attr_dict: Dict = pickle.load(f)
+                attr_dict: dict = pickle.load(f)
         else:
             raise ValueError(f"Unsupported file format: {ext}")
         length_list = [len(value) for value in attr_dict.values()]

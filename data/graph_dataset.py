@@ -1,5 +1,5 @@
 import json, os, shutil, pickle
-from typing import Callable, List, Optional, Union, Dict, Literal
+from typing import Callable, Literal
 
 import numpy as np
 import pandas as pd
@@ -18,27 +18,27 @@ _BOND_TYPE = {BT.SINGLE: 0, BT.DOUBLE: 1, BT.TRIPLE: 2, BT.AROMATIC: 3}
 
 
 class Graph(InMemoryDataset):
-    def __init__(self, root: str, transform: Optional[Callable]=None,
-                 pre_transform: Optional[Callable]=None,
-                 pre_filter: Optional[Callable]=None,
+    def __init__(self, root: str, transform: Callable | None=None,
+                 pre_transform: Callable | None=None,
+                 pre_filter: Callable | None=None,
                  sdf_file: str=None,
                  node_attr_file: str=None,
                  edge_attr_file: str=None,
                  graph_attr_file: str=None,
                  vector_file: str=None,
                  weight_file: str=None,
-                 atom_type: List[str]=None,
-                 default_node_attr: Dict=None,
-                 default_edge_attr: Dict=None,
+                 atom_type: list[str]=None,
+                 default_node_attr: dict=None,
+                 default_edge_attr: dict=None,
                  dist_thresh: float | None=None,
-                 power_list: List | None=None,
-                 node_attr_list: List[str]=[],
-                 edge_attr_list: List[str]=[],
-                 graph_attr_list: List[str]=[],
+                 power_list: list | None=None,
+                 node_attr_list: list[str]=[],
+                 edge_attr_list: list[str]=[],
+                 graph_attr_list: list[str]=[],
                  target_type: Literal['graph', 'node', 'edge']='graph',
-                 target_list: List[str]=[],
-                 node_attr_filter: Union[int, List]=[],
-                 edge_attr_filter: Union[int, List]=[],
+                 target_list: list[str]=[],
+                 node_attr_filter: int | list=[],
+                 edge_attr_filter: int | list=[],
                  pos: bool=True,
                  reprocess: bool=False,
                  ):
@@ -147,7 +147,7 @@ class Graph(InMemoryDataset):
                     dtype=torch.float
                 ).reshape(len(suppl), -1)
             elif self.target_type == 'node':
-                target: List[torch.Tensor] = []
+                target: list[torch.Tensor] = []
                 node_target_list = [node_attr_dict[key] for key in self.target_list]
                 for i in zip(*node_target_list):
                     target.append(
@@ -156,7 +156,7 @@ class Graph(InMemoryDataset):
                             ).reshape(-1, len(self.target_list))
                         )
             elif self.target_type == 'edge':
-                target: List[torch.Tensor] = []
+                target: list[torch.Tensor] = []
                 edge_target_list = [edge_attr_dict[key] for key in self.target_list]
                 for i in zip(*edge_target_list):
                     target.append(

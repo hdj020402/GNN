@@ -6,29 +6,29 @@ import pandas as pd
 import numpy as np
 import torch
 import os
-from typing import List, Dict, Literal, Tuple, Union
+from typing import Literal
 from numpy.typing import ArrayLike
 from functools import partial
 
 def scatter(
-    *args: List[ArrayLike],
-    scatter_label: List[str],
+    *args: list[ArrayLike],
+    scatter_label: list[str],
     output_path: str,
-    s: Union[ArrayLike, float] = 10.0,
-    marker: List[Literal['o', 'v', '^', 's', 'x', 'D', ]] = ['o', 'o', 'o', 'o'],
+    s: ArrayLike | float = 10.0,
+    marker: list[Literal['o', 'v', '^', 's', 'x', 'D', ]] = ['o', 'o', 'o', 'o'],
     text: str = None,
-    dot_color_list: List = ['#03788C', '#F27457', '#03488C', 'indianred', 'steelblue'],
+    dot_color_list: list = ['#03788C', '#F27457', '#03488C', 'indianred', 'steelblue'],
     line: bool = True,
     line_color: str = 'r',
     line_width: float = 0.5,
     xlabel: str = 'Target',
     ylabel: str = 'Predict',
-    figsize: Tuple = (10,10),
+    figsize: tuple = (10,10),
     axis_fontsize: float = 14,
     ylabel_fontsize: float = 16,
     xlabel_fontsize: float = 16,
     legend_fontsize: float = 10,
-    bbox_to_anchor: Tuple[float, float] = (1.0, 1.0),
+    bbox_to_anchor: tuple[float, float] = (1.0, 1.0),
     label_fontweight: Literal['normal', 'bold'] = 'normal',
     ):
     '''scatter plot
@@ -76,7 +76,7 @@ def scatter(
     return fig
 
 def corr_heatmap(
-    data: Dict,
+    data: dict,
     output_path: str,
     annot: bool,
     corr_method: Literal['pearson', 'kendall', 'spearman'] = 'pearson',
@@ -112,7 +112,7 @@ def corr_heatmap(
 def hist(
     data: ArrayLike,
     bins: int,
-    range: Tuple,
+    range: tuple,
     output_path: str,
     title: str = None,
     xlabel: str = None,   # e.g. r'Value $(g \cdot cm^3)$'
@@ -139,19 +139,19 @@ def hist(
         )
 
 def bar_2y(
-    data: Dict[str, List[ArrayLike]],   # e.g. {'Unit1 $\mathrm{g \cdot cm^3}$': [[1,2,3,4,5],[2,3,4,5,6]]}
-    labels: List,
-    bar_label: Dict[str, List[str]],   # e.g. {'Unit1 $\mathrm{g \cdot cm^3}$': ['AARD','MAE']}
+    data: dict[str, list[ArrayLike]],   # e.g. {'Unit1 $\mathrm{g \cdot cm^3}$': [[1,2,3,4,5],[2,3,4,5,6]]}
+    labels: list,
+    bar_label: dict[str, list[str]],   # e.g. {'Unit1 $\mathrm{g \cdot cm^3}$': ['AARD','MAE']}
     xlabel: str,
     output_path: str,
     width: float = 0.2,
-    color_list: List = ['#03788C', '#F27457', '#03488C', 'indianred', 'steelblue'],
-    figsize: Tuple[float, float] = (10.0, 10.0),
+    color_list: list = ['#03788C', '#F27457', '#03488C', 'indianred', 'steelblue'],
+    figsize: tuple[float, float] = (10.0, 10.0),
     axis_fontsize: float = 14,
     ylabel_fontsize: float = 16,
     xlabel_fontsize: float = 16,
     legend_fontsize: float = 10,
-    bbox_to_anchor: Tuple[float, float] = (1.0, 1.0),
+    bbox_to_anchor: tuple[float, float] = (1.0, 1.0),
     x_rotation: float = 0.0,
     label_fontweight: Literal['normal', 'bold'] = 'normal',
     ):
@@ -206,19 +206,19 @@ def bar_2y(
 
 def bar(
     *args: ArrayLike,
-    labels: List[str],
-    bar_label: List[str],
+    labels: list[str],
+    bar_label: list[str],
     ylabel: str,
     xlabel: str,
     output_path: str,
     width: float = 0.3,
-    color_list: List = ['#03788C', '#F27457', '#03488C', 'indianred', 'steelblue'],
-    figsize: Tuple = (10, 10),
+    color_list: list = ['#03788C', '#F27457', '#03488C', 'indianred', 'steelblue'],
+    figsize: tuple = (10, 10),
     axis_fontsize: float = 14,
     ylabel_fontsize: float = 16,
     xlabel_fontsize: float = 16,
     legend_fontsize: float = 10,
-    bbox_to_anchor: Tuple[float, float] = (1.0, 1.0),
+    bbox_to_anchor: tuple[float, float] = (1.0, 1.0),
     x_rotation: float = 0.0,
     label_fontweight: Literal['normal', 'bold'] = 'normal',
     ):

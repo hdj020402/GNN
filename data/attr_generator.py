@@ -4,18 +4,17 @@ import numpy as np
 import torch
 from rdkit import Chem
 from rdkit.Chem.rdchem import BondType as BT
-from typing import Dict, List
 
 from data.utils import one_hot
 
 
 def get_node_attr(
     mol: Chem.rdchem.Mol,
-    default_node_attr: Dict,
-    atom_type: List,
-    _node_attr_dict: Dict[str, List],
-    node_attr_list: List,
-    filter: List,
+    default_node_attr: dict,
+    atom_type: list,
+    _node_attr_dict: dict[str, list],
+    node_attr_list: list,
+    filter: list,
     ) -> tuple[torch.Tensor, torch.Tensor]:
     '''Generator of node attributes.
 
@@ -133,11 +132,11 @@ def get_adj_mat(mol: Chem.rdchem.Mol, tot_atom: int=0) -> torch.Tensor:
 
 def get_edge_attr(
     mol: Chem.rdchem.Mol,
-    default_edge_attr: Dict,
-    bond_type: Dict,
-    _edge_attr_dict: Dict[str, List],
-    edge_attr_list: List,
-    filter: List,
+    default_edge_attr: dict,
+    bond_type: dict,
+    _edge_attr_dict: dict[str, list],
+    edge_attr_list: list,
+    filter: list,
     ) -> torch.Tensor | None:
     '''Generator of edge type.
 

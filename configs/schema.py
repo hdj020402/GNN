@@ -13,7 +13,7 @@ Usage in main.py::
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, List, Optional
+from typing import Any
 
 
 @dataclass
@@ -41,15 +41,15 @@ class TrainingConfig:
     output_step: int = 1
     model_save_step: int = 5
     early_stopping: EarlyStoppingConfig = field(default_factory=EarlyStoppingConfig)
-    criteria_list: List[str] = field(default_factory=list)
+    criteria_list: list[str] = field(default_factory=list)
     use_amp: bool = False
 
 
 @dataclass
 class BondLengthConfig:
     norm: bool = True
-    power: List[str] = field(default_factory=lambda: ['r^-1'])
-    threshold: Optional[float] = None
+    power: list[str] = field(default_factory=lambda: ['r^-1'])
+    threshold: float | None = None
 
 
 @dataclass
@@ -71,27 +71,27 @@ class DefaultEdgeAttrConfig:
 class DataConfig:
     path: str = "data"
     sdf_file: str = "data/all.sdf"
-    node_attr_file: Optional[str] = None
-    edge_attr_file: Optional[str] = None
-    graph_attr_file: Optional[str] = None
-    vector_file: Optional[str] = None
-    weight_file: Optional[str] = None
-    atom_type: List[str] = field(default_factory=lambda: ['H', 'C', 'N', 'O', 'F'])
+    node_attr_file: str | None = None
+    edge_attr_file: str | None = None
+    graph_attr_file: str | None = None
+    vector_file: str | None = None
+    weight_file: str | None = None
+    atom_type: list[str] = field(default_factory=lambda: ['H', 'C', 'N', 'O', 'F'])
     default_node_attr: DefaultNodeAttrConfig = field(default_factory=DefaultNodeAttrConfig)
     default_edge_attr: DefaultEdgeAttrConfig = field(default_factory=DefaultEdgeAttrConfig)
-    node_attr_list: List[str] = field(default_factory=list)
-    edge_attr_list: List[str] = field(default_factory=list)
-    graph_attr_list: List[str] = field(default_factory=list)
-    node_attr_filter: List[str] = field(default_factory=list)
-    edge_attr_filter: List[str] = field(default_factory=list)
+    node_attr_list: list[str] = field(default_factory=list)
+    edge_attr_list: list[str] = field(default_factory=list)
+    graph_attr_list: list[str] = field(default_factory=list)
+    node_attr_filter: list[str] = field(default_factory=list)
+    edge_attr_filter: list[str] = field(default_factory=list)
     pos: bool = True
     target_type: str = "graph"
-    target_list: List[str] = field(default_factory=lambda: ['target1'])
-    target_transform: Optional[str] = None
+    target_list: list[str] = field(default_factory=lambda: ['target1'])
+    target_transform: str | None = None
     batch_size: int = 32
     num_workers: int = 4
     split_method: str = "random"
-    split_file: Optional[str] = None
+    split_file: str | None = None
     train_size: float = 0.6
     val_size: float = 0.2
     dataset_range: str = "whole"
@@ -132,7 +132,7 @@ class AppConfig:
     seed: int = 42
     use_deterministic: bool = True
     GPU_memo_frac: float = 0.5
-    pretrained_model: Optional[str] = None
+    pretrained_model: str | None = None
     # Set at runtime in main() via OmegaConf.update(cfg, 'timestamp', TIME)
     timestamp: str = ""
     data: DataConfig = field(default_factory=DataConfig)
