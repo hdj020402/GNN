@@ -1,12 +1,17 @@
 import torch
 import math
-from typing import Dict, Callable
+from typing import Callable
+
+from omegaconf import OmegaConf
+
+from configs.schema import AppConfig
+
 
 class SaveModel():
     def __init__(
         self,
         norm_dict: dict[str, tuple[torch.Tensor, torch.Tensor]],
-        param: Dict,
+        cfg: AppConfig,
         model_dir: str,
         ckpt_dir: str,
         trace_func: Callable
@@ -14,10 +19,13 @@ class SaveModel():
         self.best_val_loss = math.inf
         self.best_epoch = 0
         self.norm_dict = norm_dict
-        self.param = param
+        self.cfg = cfg
         self.model_dir = model_dir
         self.ckpt_dir = ckpt_dir
-        self.early_stopping = EarlyStopping(**self.param['early_stopping'], trace_func=trace_func)
+        self.early_stopping = EarlyStopping(
+            **OmegaConf.to_container(cfg.training.early_stopping, resolve=True),
+            trace_func=trace_func
+        )
 
     def best_model(
         self,
@@ -25,7 +33,7 @@ class SaveModel():
         optimizer: torch.optim.Optimizer,
         epoch: int,
         val_loss: float,
-        ) -> Dict:
+        ) -> None:
         self.val_loss = val_loss
         if val_loss < self.best_val_loss:
             self.best_val_loss = val_loss
@@ -39,7 +47,7 @@ class SaveModel():
             }
             torch.save(
                 state_dict,
-                f"{self.model_dir}/best_model_{self.param['time']}.pth"
+                f"{self.model_dir}/best_model_{self.cfg.timestamp}.pth"
                 )
 
     def regular_model(
@@ -48,7 +56,7 @@ class SaveModel():
         optimizer: torch.optim.Optimizer,
         epoch: int,
         ) -> None:
-        if epoch % self.param['model_save_step'] == 0:
+        if epoch % self.cfg.training.model_save_step == 0:
             state_dict = {
                 'norm': self.norm_dict,
                 'model': model.state_dict(),
@@ -56,14 +64,16 @@ class SaveModel():
                 'epoch': epoch,
                 'val_loss': self.val_loss
             }
+            digits = len(str(self.cfg.training.epoch_num))
             torch.save(
                 state_dict,
-                f"{self.ckpt_dir}/ckpt_{self.param['time']}_{epoch:0{len(str(self.param['epoch_num']))}d}.pth"
+                f"{self.ckpt_dir}/ckpt_{self.cfg.timestamp}_{epoch:0{digits}d}.pth"
                 )
 
     def check_early_stopping(self):
         self.early_stopping(self.val_loss)
         return self.early_stopping.early_stop
+
 
 class EarlyStopping:
     """Early stops the training if validation loss doesn't improve after a given patience."""

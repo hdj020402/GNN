@@ -254,18 +254,17 @@ def bar(
     plt.close()
 
 
-def scatterFromModel(model_path: str, param: dict, DATA, output_dir: str):
+def scatterFromModel(model_path: str, cfg, DATA, output_dir: str):
     from utils.gen_model import gen_model
-    from data.data_processing import DataProcessing
     from utils.evaluation import Evaluation
 
     train_loader = DATA.train_loader
     val_loader = DATA.val_loader
     test_loader = DATA.test_loader
 
-    model = gen_model(param, DATA.dataset)
+    model = gen_model(cfg, DATA.dataset)
     try:
-        _model = torch.load(model_path, map_location = 'cuda' if torch.cuda.is_available() else 'cpu')
+        _model = torch.load(model_path, map_location='cuda' if torch.cuda.is_available() else 'cpu')
     except FileNotFoundError:
         return
     if model_path.endswith('pkl'):
@@ -277,11 +276,10 @@ def scatterFromModel(model_path: str, param: dict, DATA, output_dir: str):
 
     eval_class = partial(
         Evaluation,
-        model = model,
-        param = param,
-        device = device,
-        norm_dict = DATA.norm_dict,
-        transform = param['target_transform']
+        model=model,
+        cfg=cfg,
+        device=device,
+        norm_dict=DATA.norm_dict,
         )
     train_eval = eval_class(train_loader)
     val_eval = eval_class(val_loader)
@@ -294,9 +292,9 @@ def scatterFromModel(model_path: str, param: dict, DATA, output_dir: str):
 
     file_name = os.path.splitext(os.path.basename(model_path))[0]
     for key, value in eval_dict.items():
-        for target, pred, task in zip(torch.split(value.target, 1, dim=-1), torch.split(value.pred, 1, dim=-1), param['target_list']):
+        for target, pred, task in zip(torch.split(value.target, 1, dim=-1), torch.split(value.pred, 1, dim=-1), cfg.data.target_list):
             scatter(
                 [target, pred],
-                scatter_label = [key],
-                output_path = os.path.join(output_dir, f'{task}/{file_name}_{task}_{key}.png'),
+                scatter_label=[key],
+                output_path=os.path.join(output_dir, f'{task}/{file_name}_{task}_{key}.png'),
                 )

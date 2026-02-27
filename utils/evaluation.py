@@ -2,26 +2,27 @@ import torch
 import torch.nn as nn
 from torch_geometric.loader import DataLoader
 
+from configs.schema import AppConfig
+
+
 class Evaluation():
     def __init__(
         self,
         DataLoader: DataLoader,
         model: nn.Module,
-        param: dict,
+        cfg: AppConfig,
         device: torch.device,
         norm_dict: dict[str, tuple[torch.Tensor, torch.Tensor]],
-        transform: str | None = None,
-        use_amp: bool = False,
         ) -> None:
-        self.param = param
+        self.cfg = cfg
         self.DataLoader = DataLoader
         self.model = model
         self.device = device
         mean, std = norm_dict['y']
         self.mean = mean.to('cpu')
         self.std = std.to('cpu')
-        self.transform = transform
-        self.use_amp = use_amp
+        self.use_amp = cfg.training.use_amp
+        self.transform = cfg.data.target_transform
         self.pred, self.target = self._get_pred()
 
     def _get_pred(self) -> tuple[torch.Tensor, torch.Tensor]:
@@ -46,7 +47,7 @@ class Evaluation():
         sum_pred = torch.cat(sum_pred)
         sum_target = torch.cat(sum_target)
 
-        if not self.param['target_type'] == 'vector':
+        if not self.cfg.data.target_type == 'vector':
             sum_pred = sum_pred * self.std + self.mean
             sum_pred = self.target_inverse_transform(sum_pred)
             sum_target = sum_target * self.std + self.mean

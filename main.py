@@ -2,12 +2,15 @@ import os, time, yaml, json
 os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
 os.environ["PYTHONHASHSEED"] = "0"
 import torch, optuna
+from copy import deepcopy
 from functools import partial
+from typing import cast
 
 import hydra
 from omegaconf import DictConfig, OmegaConf
 from torch.utils.tensorboard import SummaryWriter
 
+from configs.schema import AppConfig
 from data.data_processing import DataProcessing
 from utils.gen_model import gen_model, gen_optimizer, gen_scheduler
 from utils.setup_seed import setup_seed
@@ -21,8 +24,21 @@ from utils.save_model import SaveModel
 from utils.timer import Timer
 from utils.gpu_monitor import GPUMonitor
 
-def training(param: dict, trial: optuna.Trial | None = None) -> float:
-    fp = FileProcessing(param, trial=trial)
+
+def _flatten_search_space(d: dict, prefix: str = '') -> dict:
+    """Recursively flatten nested search-space dict to ``{dotted_path: spec}``."""
+    result = {}
+    for k, v in d.items():
+        key = f"{prefix}.{k}" if prefix else str(k)
+        if isinstance(v, dict) and 'type' not in v:
+            result.update(_flatten_search_space(v, key))
+        else:
+            result[key] = v
+    return result
+
+
+def training(cfg: AppConfig, trial: optuna.Trial | None = None) -> float:
+    fp = FileProcessing(cfg, trial=trial)
     fp.pre_make()
     plot_dir, model_dir, ckpt_dir = fp.plot_dir, fp.model_dir, fp.ckpt_dir
     log_file = fp.log_file
@@ -32,11 +48,11 @@ def training(param: dict, trial: optuna.Trial | None = None) -> float:
     gpu_monitor.start()
     error_dict = fp.error_dict
 
-    epoch_num = param['epoch_num']
+    epoch_num = cfg.training.epoch_num
 
     dp_timer = Timer()
     dp_timer.start()
-    DATA = DataProcessing(param)
+    DATA = DataProcessing(cfg)
     dataset = DATA.dataset
     norm_dict = DATA.norm_dict
     train_loader = DATA.train_loader
@@ -45,24 +61,23 @@ def training(param: dict, trial: optuna.Trial | None = None) -> float:
     dp_timer.end()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = gen_model(param, dataset)
-    optimizer = gen_optimizer(param, model)
-    scheduler = gen_scheduler(param, optimizer)
+    model = gen_model(cfg, dataset)
+    optimizer = gen_optimizer(cfg, model)
+    scheduler = gen_scheduler(cfg, optimizer)
 
     fp.basic_info_log(
         dataset, train_loader, val_loader, test_loader, None,
         norm_dict, model, dp_timer
         )
 
-    criteria_set = set(param['criteria_list'] + [param['loss_fn']])
+    criteria_set = set(list(cfg.training.criteria_list) + [cfg.training.loss_fn])
     # For vector targets only Cosine is meaningful; decide once outside the loop
-    phase_criteria = {'Cosine'} if param['target_type'] == 'vector' else criteria_set
+    phase_criteria = {'Cosine'} if cfg.data.target_type == 'vector' else criteria_set
 
     eval_class = partial(
-        Evaluation, param = param, device = device, norm_dict=norm_dict,
-        transform = param['target_transform'], use_amp = param['use_amp'])
+        Evaluation, cfg=cfg, device=device, norm_dict=norm_dict)
 
-    model_saving = SaveModel(norm_dict, param, model_dir, ckpt_dir, training_logger.info)
+    model_saving = SaveModel(norm_dict, cfg, model_dir, ckpt_dir, training_logger.info)
     start_epoch = fp.pre_train(model, optimizer, device, model_saving)
 
     writer = SummaryWriter(log_dir=fp.tensorboard_dir)
@@ -72,8 +87,9 @@ def training(param: dict, trial: optuna.Trial | None = None) -> float:
     for epoch in range(start_epoch, epoch_num+1):
         try:
             lr = scheduler.optimizer.param_groups[0]['lr']
-            loss = train(model, train_loader, optimizer, param['loss_fn'], device, param['accumulation_step'], param['use_amp'])
-            val_loss = validate(model, val_loader, param['loss_fn'], device)
+            loss = train(model, train_loader, optimizer, cfg.training.loss_fn, device,
+                         cfg.training.accumulation_step, cfg.training.use_amp)
+            val_loss = validate(model, val_loader, cfg.training.loss_fn, device)
             error_dict['Overall']['LR'] = round(lr, 7)
             error_dict['Overall']['Loss'] = round(loss, 7)
             for phase, loader in zip(['Train', 'Val', 'Test'], [train_loader, val_loader, test_loader]):
@@ -128,14 +144,15 @@ def training(param: dict, trial: optuna.Trial | None = None) -> float:
     writer.close()
 
     scatterFromModel(
-        f'{model_dir}/best_model_{param["time"]}.pth',
-        param, DATA, plot_dir
+        f'{model_dir}/best_model_{cfg.timestamp}.pth',
+        cfg, DATA, plot_dir
         )
 
     return model_saving.best_val_loss
 
-def prediction(param: dict) -> None:
-    fp = FileProcessing(param)
+
+def prediction(cfg: AppConfig) -> None:
+    fp = FileProcessing(cfg)
     fp.pre_make()
     plot_dir, data_dir, model_dir = fp.plot_dir, fp.data_dir, fp.model_dir
     prediction_logger = fp.prediction_logger
@@ -147,7 +164,7 @@ def prediction(param: dict) -> None:
 
     dp_timer = Timer()
     dp_timer.start()
-    DATA = DataProcessing(param)
+    DATA = DataProcessing(cfg)
     dataset = DATA.dataset
     norm_dict = DATA.norm_dict
     train_loader = DATA.train_loader
@@ -158,24 +175,24 @@ def prediction(param: dict) -> None:
 
     loader_dict = {'train': train_loader, 'val': val_loader, 'test': test_loader, 'whole': pred_loader}
     try:
-        loader = loader_dict[param['dataset_range']]
+        loader = loader_dict[cfg.data.dataset_range]
     except KeyError:
         loader = pred_loader
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = gen_model(param, dataset)
-    optimizer = gen_optimizer(param, model)
+    model = gen_model(cfg, dataset)
+    optimizer = gen_optimizer(cfg, model)
     fp.pre_train(model, optimizer, device)
 
-    len_target = len(param['target_list'])
+    len_target = len(cfg.data.target_list)
     fp.basic_info_log(
         dataset, None, None, None, loader,
         norm_dict, model, dp_timer
         )
 
-    criteria_list = param['criteria_list']
+    criteria_list = list(cfg.training.criteria_list)
 
-    evaluation = Evaluation(loader, model, param, device, norm_dict, param['target_transform'], use_amp=param['use_amp'])
+    evaluation = Evaluation(loader, model, cfg, device, norm_dict)
     pred, target = evaluation.pred, evaluation.target
     gpu_monitor.stop()
 
@@ -197,33 +214,21 @@ def prediction(param: dict) -> None:
             torch.save(pred[:, 0, idx], f'{data_dir}/{subtask}/pred.pt')
             torch.save(target[:, 0, idx], f'{data_dir}/{subtask}/target.pt')
 
-    for t, p, task in zip(torch.split(target, 1, dim=-1), torch.split(pred, 1, dim=-1), param['target_list']):
+    for t, p, task in zip(torch.split(target, 1, dim=-1), torch.split(pred, 1, dim=-1), cfg.data.target_list):
         scatter(
             [t, p],
             scatter_label = 'eval',
-            output_path = f"{plot_dir}/{task}/{param['dataset_range']}.png",
+            output_path = f"{plot_dir}/{task}/{cfg.data.dataset_range}.png",
             )
 
-def hparam_tuning(param: dict) -> None:
+
+def hparam_tuning(cfg: AppConfig) -> None:
     """Run Optuna hyperparameter search.
 
-    Study settings come from ``param['optuna']`` (cfg.optuna).
-    The search space comes from ``param['search_space']`` (cfg.optuna.search_space).
-    Each key in search_space is a flat param name (e.g. ``lr``, ``optimizer``).
+    Study settings come from ``cfg.optuna``.
+    The search space comes from ``cfg.optuna.search_space`` (nested dict),
+    which is flattened to dot-notation keys and applied via OmegaConf.update().
     """
-    import copy
-
-    optuna_cfg = param['optuna']
-    search_space = param.get('search_space') or {}
-
-    jobtype = param['jobtype']
-    fp = FileProcessing(param)
-    fp.pre_make()
-    storage_name = fp.optuna_db
-    redirect_optuna_log(fp.hptuning_logger)
-
-    # Map type strings to (suggest_method, extra_kwargs_transform) pairs.
-    # Optuna 3+ deprecates suggest_loguniform / suggest_discrete_uniform.
     def _suggest(trial: optuna.Trial, name: str, spec: dict):
         stype = spec['type']
         kw = {k: v for k, v in spec.items() if k != 'type'}
@@ -240,54 +245,24 @@ def hparam_tuning(param: dict) -> None:
         else:
             raise ValueError(f"Unknown suggest type '{stype}' for param '{name}'")
 
+    fp = FileProcessing(cfg)
+    fp.pre_make()
+    storage_name = fp.optuna_db
+    redirect_optuna_log(fp.hptuning_logger)
+
+    search_space_raw = OmegaConf.to_container(cfg.optuna.search_space, resolve=True) or {}
+    search_space = _flatten_search_space(search_space_raw)
+
     def objective(trial: optuna.Trial) -> float:
-        trial_param = copy.deepcopy(param)
-        for key, spec in search_space.items():
-            trial_param[key] = _suggest(trial, key, spec)
-        return training(trial_param, trial=trial)
+        trial_cfg = cast(AppConfig, deepcopy(cfg))
+        for dotted_key, spec in search_space.items():
+            OmegaConf.update(trial_cfg, dotted_key, _suggest(trial, dotted_key, spec))
+        return training(trial_cfg, trial=trial)
 
-    study = create_study(optuna_cfg, f'hptuning_{jobtype}', storage_name)
-    study.optimize(objective, n_trials=optuna_cfg['n_trials'])
+    optuna_cfg = OmegaConf.to_container(cfg.optuna, resolve=True)
+    study = create_study(optuna_cfg, f'hptuning_{cfg.output.jobtype}', storage_name)
+    study.optimize(objective, n_trials=cfg.optuna.n_trials)
     fp.hptuning_log(study)
-
-
-def _build_param(cfg: DictConfig) -> dict:
-    """Flatten the hierarchical Hydra config into a plain dict.
-
-    All downstream utilities (DataProcessing, FileProcessing, …) expect a
-    flat dict with keys like ``param['lr']``, ``param['target_list']``, etc.
-    Hydra's DictConfig supports dict-style access, but some utilities call
-    ``yaml.dump(param, …)`` which requires a plain Python dict.
-    """
-    param: dict = {}
-    param.update(OmegaConf.to_container(cfg.data, resolve=True))
-    param.update(OmegaConf.to_container(cfg.training, resolve=True))
-    param.update(OmegaConf.to_container(cfg.output, resolve=True))
-
-    # Root-level settings
-    param['mode'] = cfg.mode
-    param['seed'] = cfg.seed
-    param['GPU_memo_frac'] = cfg.GPU_memo_frac
-    param['pretrained_model'] = cfg.pretrained_model
-    param['use_deterministic'] = cfg.use_deterministic
-    param['use_amp'] = cfg.training.use_amp
-
-    # Backbone: extract 'name' as the factory key; remaining keys are kwargs
-    backbone_d: dict = OmegaConf.to_container(cfg.model.backbone, resolve=True)
-    param['backbone'] = backbone_d.pop('name')
-    param['backbone_cfg'] = backbone_d
-
-    # Head: extract 'name' (matches target_type); remaining keys are kwargs
-    head_d: dict = OmegaConf.to_container(cfg.model.head, resolve=True)
-    param['head_name'] = head_d.pop('name')
-    param['head_cfg'] = head_d
-
-    # Optuna: study settings and search space (used only when mode=hparam_tuning)
-    optuna_d: dict = OmegaConf.to_container(cfg.optuna, resolve=True)
-    param['search_space'] = optuna_d.pop('search_space', None) or {}
-    param['optuna'] = optuna_d
-
-    return param
 
 
 @hydra.main(config_path="configs", config_name="config", version_base="1.3")
@@ -295,22 +270,22 @@ def main(cfg: DictConfig) -> None:
     """Entry point.  Behaviour is determined by cfg.mode."""
     TIME = time.strftime('%b_%d_%Y_%H%M%S', time.localtime())
 
-    param = _build_param(cfg)
-    param['time'] = TIME
+    _cfg = cast(AppConfig, cfg)
+    OmegaConf.update(_cfg, 'timestamp', TIME)
 
-    setup_seed(param['seed'], param['use_deterministic'])
-    if param['use_deterministic']:
+    setup_seed(_cfg.seed, _cfg.use_deterministic)
+    if _cfg.use_deterministic:
         torch.use_deterministic_algorithms(True)
 
-    if param['mode'] in ['training', 'fine-tuning']:
-        training(param)
-    elif param['mode'] == 'hparam_tuning':
-        hparam_tuning(param)
-    elif param['mode'] == 'prediction':
-        prediction(param)
+    if _cfg.mode in ['training', 'fine-tuning']:
+        training(_cfg)
+    elif _cfg.mode == 'hparam_tuning':
+        hparam_tuning(_cfg)
+    elif _cfg.mode == 'prediction':
+        prediction(_cfg)
     else:
         raise ValueError(
-            f"Invalid mode '{param['mode']}'. Valid: training / hparam_tuning / "
+            f"Invalid mode '{_cfg.mode}'. Valid: training / hparam_tuning / "
             "prediction / fine-tuning"
         )
 

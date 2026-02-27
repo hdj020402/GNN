@@ -31,7 +31,8 @@
 #     type: categorical
 #     choices: [Adam, AdamW, SGD]
 #
-# Keys must match flat param names (the merged param dict in main.py).
-# Common tunable keys: lr, optimizer, batch_size, epoch_num,
-#   accumulation_step, processing_steps, mp_times (MPNN),
-#   node_dim (GCN/GAT/GIN/Transformer), hidden_channels (SchNet/DimeNet++)
+# Keys use Hydra dot-notation to match the cfg structure (e.g. training.lr, data.batch_size).
+# Common tunable keys: training.lr, training.optimizer, data.batch_size, training.epoch_num,
+#   training.accumulation_step, model.backbone.mp_times (MPNN),
+#   model.backbone.node_dim (GCN/GAT/GIN/Transformer),
+#   model.backbone.hidden_channels (SchNet/DimeNet++)
