@@ -60,7 +60,7 @@ def training(param: dict, trial: optuna.Trial | None = None) -> float:
 
     eval_class = partial(
         Evaluation, param = param, device = device, norm_dict=norm_dict,
-        transform = param['target_transform'])
+        transform = param['target_transform'], use_amp = param['use_amp'])
 
     model_saving = SaveModel(norm_dict, param, model_dir, ckpt_dir, training_logger.info)
     start_epoch = fp.pre_train(model, optimizer, device, model_saving)
@@ -72,7 +72,7 @@ def training(param: dict, trial: optuna.Trial | None = None) -> float:
     for epoch in range(start_epoch, epoch_num+1):
         try:
             lr = scheduler.optimizer.param_groups[0]['lr']
-            loss = train(model, train_loader, optimizer, param['loss_fn'], device, param['accumulation_step'])
+            loss = train(model, train_loader, optimizer, param['loss_fn'], device, param['accumulation_step'], param['use_amp'])
             val_loss = validate(model, val_loader, param['loss_fn'], device)
             error_dict['Overall']['LR'] = round(lr, 7)
             error_dict['Overall']['Loss'] = round(loss, 7)
@@ -175,7 +175,7 @@ def prediction(param: dict) -> None:
 
     criteria_list = param['criteria_list']
 
-    evaluation = Evaluation(loader, model, param, device, norm_dict, param['target_transform'])
+    evaluation = Evaluation(loader, model, param, device, norm_dict, param['target_transform'], use_amp=param['use_amp'])
     pred, target = evaluation.pred, evaluation.target
     gpu_monitor.stop()
 
@@ -269,6 +269,8 @@ def _build_param(cfg: DictConfig) -> dict:
     param['seed'] = cfg.seed
     param['GPU_memo_frac'] = cfg.GPU_memo_frac
     param['pretrained_model'] = cfg.pretrained_model
+    param['use_deterministic'] = cfg.use_deterministic
+    param['use_amp'] = cfg.training.use_amp
 
     # Backbone: extract 'name' as the factory key; remaining keys are kwargs
     backbone_d: dict = OmegaConf.to_container(cfg.model.backbone, resolve=True)
@@ -296,8 +298,9 @@ def main(cfg: DictConfig) -> None:
     param = _build_param(cfg)
     param['time'] = TIME
 
-    setup_seed(param['seed'])
-    torch.use_deterministic_algorithms(True)
+    setup_seed(param['seed'], param['use_deterministic'])
+    if param['use_deterministic']:
+        torch.use_deterministic_algorithms(True)
 
     if param['mode'] in ['training', 'fine-tuning']:
         training(param)

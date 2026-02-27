@@ -13,6 +13,7 @@ mode: training  # training / hparam_tuning / prediction / fine-tuning
 
 # Global settings
 seed: 42
+use_deterministic: true   # false → allow non-deterministic CUDA kernels for speed
 GPU_memo_frac: 0.5
 pretrained_model: null   # Path to a .pth checkpoint; required for prediction / fine-tuning
 

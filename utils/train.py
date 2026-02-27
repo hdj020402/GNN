@@ -39,15 +39,17 @@ def train(
     optimizer: Union[AdamW, SGD, Adam],
     loss_fn: Literal['MAE', 'MSE', 'Cosine'],
     device: torch.device,
-    accumulation_steps: int = 1
+    accumulation_steps: int = 1,
+    use_amp: bool = False,
     ) -> float:
     model.train()
     loss_all = 0
 
     for i, data in enumerate(train_loader):
         data = data.to(device)
-        output = model(data)
-        loss = weighted_loss(output, data.y, data.weight, loss_fn)
+        with torch.autocast(device_type=device.type, dtype=torch.bfloat16, enabled=use_amp):
+            output = model(data)
+            loss = weighted_loss(output, data.y, data.weight, loss_fn)
         loss_all += loss.item() * data.num_graphs
         loss = loss / accumulation_steps
         loss.backward()

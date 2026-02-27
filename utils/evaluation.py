@@ -11,6 +11,7 @@ class Evaluation():
         device: torch.device,
         norm_dict: dict[str, tuple[torch.Tensor, torch.Tensor]],
         transform: str | None = None,
+        use_amp: bool = False,
         ) -> None:
         self.param = param
         self.DataLoader = DataLoader
@@ -20,6 +21,7 @@ class Evaluation():
         self.mean = mean.to('cpu')
         self.std = std.to('cpu')
         self.transform = transform
+        self.use_amp = use_amp
         self.pred, self.target = self._get_pred()
 
     def _get_pred(self) -> tuple[torch.Tensor, torch.Tensor]:
@@ -29,7 +31,8 @@ class Evaluation():
         with torch.no_grad():
             for data in self.DataLoader:
                 data = data.to(self.device)
-                output = self.model(data)
+                with torch.autocast(device_type=self.device.type, dtype=torch.bfloat16, enabled=self.use_amp):
+                    output = self.model(data)
                 y = data.y
 
                 output = output.cpu()
