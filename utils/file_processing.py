@@ -174,7 +174,7 @@ class FileProcessing:
 
     def load_model(
         self,
-        state_dict: Dict,
+        state_dict: dict,
         model: torch.nn.Module,
         optimizer: torch.optim.Optimizer,
         mode: Literal['training', 'prediction', 'fine-tuning']
@@ -194,13 +194,13 @@ class FileProcessing:
         pretrained_model = self.cfg.pretrained_model
         mode = self.cfg.mode
         if mode in ['prediction', 'fine-tuning']:
-            state_dict: Dict = torch.load(pretrained_model, map_location=device)
+            state_dict: dict = torch.load(pretrained_model, map_location=device)
             self.load_model(state_dict, model, optimizer, mode)
             start_epoch = 1
         # resume training
         elif mode == 'training':
             if pretrained_model:
-                state_dict: Dict = torch.load(pretrained_model, map_location=device)
+                state_dict: dict = torch.load(pretrained_model, map_location=device)
                 self.load_model(state_dict, model, optimizer, mode)
                 start_epoch = state_dict['epoch'] + 1
                 pre_dir = os.path.dirname(os.path.dirname(os.path.dirname(pretrained_model)))
@@ -219,13 +219,13 @@ class FileProcessing:
         self.start_epoch = start_epoch
         return start_epoch
 
-    def pred_log(self, info: Dict) -> None:
+    def pred_log(self, info: dict) -> None:
         self.prediction_logger.info(json.dumps(info))
 
     def training_log(
         self,
         epoch: int,
-        info: Dict,
+        info: dict,
         best_val_loss: float,
         best_epoch: int,
         ) -> None:

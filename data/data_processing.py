@@ -175,7 +175,7 @@ class DataProcessing():
     def get_mean_std(self) -> dict[str, tuple[torch.Tensor, torch.Tensor]]:
         if self.cfg.mode == 'prediction':
             pretrained_model = self.cfg.pretrained_model
-            state_dict: Dict = torch.load(pretrained_model, map_location=torch.device('cpu'))
+            state_dict: dict = torch.load(pretrained_model, map_location=torch.device('cpu'))
             norm_dict = state_dict['norm']
         else:
             train_dataset = self.dataset[self.train_dataset.indices]
