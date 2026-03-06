@@ -7,14 +7,38 @@ import torch
 from torch_geometric.data import Data, InMemoryDataset
 
 from rdkit import Chem, RDLogger
-from rdkit.Chem.rdchem import BondType as BT
 RDLogger.DisableLog('rdApp.*')
 
-from data.attr_generator import get_adj_mat, get_edge_attr, get_node_attr
-from data.utils import read_attr, complete_with_dist_filter, power_dist
+from data.featurizer import get_adj_mat, get_edge_attr, get_node_attr
+from data.graph_transforms import complete_with_dist_filter, power_dist
 
-# definition atom and bond type for one hot repr
-_BOND_TYPE = {BT.SINGLE: 0, BT.DOUBLE: 1, BT.TRIPLE: 2, BT.AROMATIC: 3}
+
+def _read_attr(file: str | None, attr_type: str, length: int) -> dict | None:
+    '''Load a per-molecule attribute file (.json or .pkl) and validate its length.
+
+    Returns None when file is None; raises ValueError for unsupported formats
+    or mismatched lengths.
+    '''
+    if file is None:
+        return None
+    _, ext = os.path.splitext(file)
+    if ext == '.json':
+        with open(file, 'r') as f:
+            attr_dict: dict = json.load(f)
+    elif ext == '.pkl':
+        with open(file, 'rb') as f:
+            attr_dict: dict = pickle.load(f)
+    else:
+        raise ValueError(f"Unsupported attribute file format: {ext}")
+    lengths = [len(v) for v in attr_dict.values()]
+    if min(lengths) != max(lengths):
+        raise ValueError(f'{attr_type} attributes have inconsistent lengths.')
+    if min(lengths) != length:
+        raise ValueError(
+            f'{attr_type} attribute file has {min(lengths)} entries '
+            f'but SDF has {length}.'
+        )
+    return attr_dict
 
 
 class Graph(InMemoryDataset):
@@ -40,6 +64,8 @@ class Graph(InMemoryDataset):
                  node_attr_filter: int | list=[],
                  edge_attr_filter: int | list=[],
                  pos: bool=True,
+                 graph_type: str='bond',
+                 sanitize: bool=True,
                  reprocess: bool=False,
                  ):
         '''graph dataset for polymers
@@ -84,6 +110,8 @@ class Graph(InMemoryDataset):
         self.node_attr_filter = [node_attr_filter] if isinstance(node_attr_filter, int) else node_attr_filter  # TODO: Implement this
         self.edge_attr_filter = [edge_attr_filter] if isinstance(edge_attr_filter, int) else edge_attr_filter  # TODO: Implement this
         self.pos = pos
+        self.graph_type = graph_type
+        self.sanitize = sanitize
         self.reprocess = reprocess
         if self.reprocess:
             self._reprocess()
@@ -126,13 +154,13 @@ class Graph(InMemoryDataset):
         # read sdf file
         suppl = Chem.SDMolSupplier(self.sdf_file,
                                    removeHs=False,
-                                   sanitize=False,
+                                   sanitize=self.sanitize,
                                    )
 
         # read node & edge attribute
-        node_attr_dict = read_attr(self.node_attr_file, 'node', len(suppl))
-        edge_attr_dict = read_attr(self.edge_attr_file, 'edge', len(suppl))
-        vector_dict = read_attr(self.vector_file, 'vector', len(suppl))
+        node_attr_dict = _read_attr(self.node_attr_file, 'node', len(suppl))
+        edge_attr_dict = _read_attr(self.edge_attr_file, 'edge', len(suppl))
+        vector_dict = _read_attr(self.vector_file, 'vector', len(suppl))
 
         # extract target and graph_attr from csv
         try:
@@ -187,6 +215,20 @@ class Graph(InMemoryDataset):
         # extract raw attrs from structures and generate graph
         data_list = []
         for i, mol in enumerate(suppl):
+            if mol is None:
+                continue
+            if not self.sanitize:
+                # Partial sanitization: skip only the valence-property check so that
+                # molecules with unusual valences (e.g. hypervalent P/S/Cl) are kept,
+                # while hybridization, aromaticity, ring info, and conjugation are
+                # all correctly assigned.
+                try:
+                    Chem.SanitizeMol(mol, Chem.SanitizeFlags.SANITIZE_ALL ^ Chem.SanitizeFlags.SANITIZE_PROPERTIES)
+                except Exception:
+                    # Rare: e.g. truly un-kekulizable aromatic systems.
+                    # Treat the same as a failed strict sanitization — skip the entry.
+                    continue
+
             # node attr
             _node_attr_dict = {k: v[i] for k, v in node_attr_dict.items()} if node_attr_dict else None
             x, pos = get_node_attr(mol,
@@ -203,7 +245,6 @@ class Graph(InMemoryDataset):
             _edge_attr_dict = {k: v[i] for k, v in edge_attr_dict.items()} if edge_attr_dict else None
             edge_attr = get_edge_attr(mol,
                                       self.default_edge_attr,
-                                      _BOND_TYPE,
                                       _edge_attr_dict,
                                       self.edge_attr_list,
                                       self.edge_attr_filter,
@@ -227,11 +268,29 @@ class Graph(InMemoryDataset):
             data = Data(x=x, z=z, pos=pos, edge_index=edge_index,
                         edge_attr=edge_attr, y=y, graph_attr=g_a, weight=weight,
                         name=name, idx=i)
-            data = complete_with_dist_filter(data, self.dist_thresh)
-            for length_type in self.power_list:
-                length_type: str
-                power = float(length_type.split('^')[1])
-                data = power_dist(data, cat=True, power=power, distance_threshold=self.dist_thresh)
+
+            # Dispatch based on graph_type
+            if self.graph_type == 'bond':
+                # Keep only chemical bonds, optionally add distance features
+                if self.pos and self.power_list:
+                    for length_type in self.power_list:
+                        power = float(length_type.split('^')[1])
+                        data = power_dist(data, cat=True, power=power)
+
+            elif self.graph_type in ('radius', 'complete'):
+                # Build extended graphs (distance-based or complete)
+                if not self.pos:
+                    raise ValueError(
+                        f"graph_type='{self.graph_type}' requires pos=true."
+                    )
+                data = complete_with_dist_filter(data, self.dist_thresh)
+                for length_type in self.power_list:
+                    power = float(length_type.split('^')[1])
+                    data = power_dist(data, cat=True, power=power)
+
+            else:
+                raise ValueError(f"Unknown graph_type: '{self.graph_type}'")
+
             # pre filter and pre transform
             if self.pre_filter is not None and not self.pre_filter(data):
                 continue

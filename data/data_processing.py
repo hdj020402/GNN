@@ -17,7 +17,8 @@ _REPROCESS_KEYS = [
     'sdf_file', 'node_attr_file', 'edge_attr_file', 'graph_attr_file',
     'weight_file', 'atom_type', 'default_node_attr', 'default_edge_attr',
     'node_attr_list', 'edge_attr_list', 'graph_attr_list',
-    'node_attr_filter', 'edge_attr_filter', 'pos', 'target_list', 'target_transform',
+    'node_attr_filter', 'edge_attr_filter', 'pos', 'graph_type', 'sanitize',
+    'target_list', 'target_transform',
 ]
 
 
@@ -68,6 +69,8 @@ class DataProcessing():
             node_attr_filter=list(d.node_attr_filter),
             edge_attr_filter=list(d.edge_attr_filter),
             pos=d.pos,
+            graph_type=d.graph_type,
+            sanitize=d.sanitize,
             reprocess=self.reprocess,
             )
 
@@ -159,12 +162,7 @@ class DataProcessing():
                 continue
             mean, std = norm_info
             data = getattr(self.dataset.data, attr)
-            scaled_attr = torch.zeros_like(data)
-            for i in range(data.shape[-1]):
-                if std[i] == 0:
-                    scaled_attr[:, i] = 0.0
-                else:
-                    scaled_attr[:, i] = (data[:, i] - mean[i]) / std[i]
+            scaled_attr = (data - mean) / std
             setattr(self.dataset.data, attr, scaled_attr)
         if self.cfg.data.target_type == 'vector':
             self.dataset.data.y = F.normalize(self.dataset.y, p=2, dim=1)
@@ -182,15 +180,12 @@ class DataProcessing():
             norm_dict = {}
             for attr in ['x', 'edge_attr', 'y', 'graph_attr', ]:
                 data: torch.Tensor = getattr(train_dataset, attr)
-                try:
-                    data = data.view(-1, data.shape[-1])
-                    mean = data.mean(dim=0)
-                    std = data.std(dim=0)
-                    for i in range(data.shape[-1]):
-                        if ((data[:, i] == 0) | (data[:, i] == 1)).all():
-                            mean[i] = 0.0
-                            std[i] = 1.0
-                    norm_dict[attr] = (mean, std)
-                except RuntimeError:
-                    pass
+                if data is None:
+                    continue
+                data = data.view(-1, data.shape[-1])
+                if data.numel() == 0:
+                    continue
+                mean = data.mean(dim=0)
+                std = data.std(dim=0).clamp(min=1e-8)
+                norm_dict[attr] = (mean, std)
         return norm_dict

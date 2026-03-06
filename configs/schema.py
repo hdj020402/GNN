@@ -47,7 +47,6 @@ class TrainingConfig:
 
 @dataclass
 class BondLengthConfig:
-    norm: bool = True
     power: list[str] = field(default_factory=lambda: ['r^-1'])
     threshold: float | None = None
 
@@ -59,11 +58,16 @@ class DefaultNodeAttrConfig:
     aromatic: bool = False
     num_neighbors: bool = True
     num_hs: bool = True
+    hybridization: bool = False
+    in_ring: bool = False
+    formal_charge: bool = False
 
 
 @dataclass
 class DefaultEdgeAttrConfig:
     edge_type: bool = True
+    conjugated: bool = False
+    bond_in_ring: bool = False
     bond_length: BondLengthConfig = field(default_factory=BondLengthConfig)
 
 
@@ -76,7 +80,7 @@ class DataConfig:
     graph_attr_file: str | None = None
     vector_file: str | None = None
     weight_file: str | None = None
-    atom_type: list[str] = field(default_factory=lambda: ['H', 'C', 'N', 'O', 'F'])
+    atom_type: list[str] = field(default_factory=lambda: ['H', 'C', 'N', 'O', 'F', 'UNK'])
     default_node_attr: DefaultNodeAttrConfig = field(default_factory=DefaultNodeAttrConfig)
     default_edge_attr: DefaultEdgeAttrConfig = field(default_factory=DefaultEdgeAttrConfig)
     node_attr_list: list[str] = field(default_factory=list)
@@ -85,6 +89,8 @@ class DataConfig:
     node_attr_filter: list[str] = field(default_factory=list)
     edge_attr_filter: list[str] = field(default_factory=list)
     pos: bool = True
+    sanitize: bool = True
+    graph_type: str = "bond"
     target_type: str = "graph"
     target_list: list[str] = field(default_factory=lambda: ['target1'])
     target_transform: str | None = None

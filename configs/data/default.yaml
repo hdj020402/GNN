@@ -11,7 +11,7 @@ vector_file: null            # CSV file for vector targets (target_type=vector)
 weight_file: null            # CSV file for per-sample loss weights
 
 # ─── Atoms ─────────────────────────────────────────────────────────────────────
-atom_type: [H, C, N, O, F]
+atom_type: [H, C, N, O, F, UNK]
 
 # ─── Default node / edge attributes (always computed from SDF) ─────────────────
 default_node_attr:
@@ -20,11 +20,15 @@ default_node_attr:
   aromatic: false            # Aromaticity flag
   num_neighbors: true        # Degree
   num_hs: true               # Implicit H count
+  hybridization: false       # Hybridization type (one-hot, 6 dims)
+  in_ring: false             # Whether atom is in ring
+  formal_charge: false       # Formal charge on atom
 
 default_edge_attr:
   edge_type: true            # Bond type one-hot
+  conjugated: false          # Conjugated flag
+  bond_in_ring: false        # Bond in ring flag
   bond_length:
-    norm: true
     power: ['r^-1']          # Distance power terms to append
     threshold: null          # Distance cutoff for non-bonded edges (null = bonds only)
 
@@ -38,6 +42,19 @@ node_attr_filter: []
 edge_attr_filter: []
 
 pos: true                    # Include 3-D coordinates (required for equivariant models)
+
+# ─── Sanitization ──────────────────────────────────────────────────────────────
+sanitize: true               # true: strict RDKit sanitization; molecules with invalid
+                             #   valences are skipped (returns None → logged as warning)
+                             # false: permissive; all molecules kept, but valence-check
+                             #   is skipped — hybridization/aromaticity/conjugation are
+                             #   still computed via selective sanitization
+
+# ─── Graph type ────────────────────────────────────────────────────────────────
+graph_type: bond             # bond / radius / complete
+                             # - bond: only chemical bonds (O(M))
+                             # - radius: all pairs within distance threshold
+                             # - complete: all N*(N-1) pairs (requires pos=true)
 
 # ─── Targets ───────────────────────────────────────────────────────────────────
 target_type: graph           # graph / node / edge
