@@ -18,6 +18,7 @@ class SaveModel():
         ) -> None:
         self.best_val_loss = math.inf
         self.best_epoch = 0
+        self.val_loss = math.inf
         self.norm_dict = norm_dict
         self.cfg = cfg
         self.model_dir = model_dir
@@ -70,14 +71,14 @@ class SaveModel():
                 f"{self.ckpt_dir}/ckpt_{self.cfg.timestamp}_{epoch:0{digits}d}.pth"
                 )
 
-    def check_early_stopping(self):
+    def check_early_stopping(self) -> bool:
         self.early_stopping(self.val_loss)
         return self.early_stopping.early_stop
 
 
 class EarlyStopping:
     """Early stops the training if validation loss doesn't improve after a given patience."""
-    def __init__(self, patience=7, delta=0, trace_func=print) -> None:
+    def __init__(self, patience: int = 7, delta: float = 0, trace_func: Callable = print) -> None:
         self.patience = patience
         self.counter = 0
         self.best_score = None
@@ -85,7 +86,7 @@ class EarlyStopping:
         self.delta = delta
         self.trace_func = trace_func
 
-    def __call__(self, val_loss) -> None:
+    def __call__(self, val_loss: float) -> None:
         score = -val_loss
         if self.best_score is None:
             self.best_score = score

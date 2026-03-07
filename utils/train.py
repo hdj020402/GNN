@@ -17,6 +17,8 @@ def weighted_loss(
         cosine_sim = F.cosine_similarity(pred, target, dim=1)
         loss = 1 - cosine_sim
         return (weight * loss).mean()
+    else:
+        raise ValueError(f"Unknown loss_type: '{loss_type}'")
 
 def unweighted_loss(
     pred: torch.Tensor,
@@ -31,6 +33,8 @@ def unweighted_loss(
         cosine_sim = F.cosine_similarity(pred, target, dim=1)
         loss = 1 - cosine_sim
         return loss.mean()
+    else:
+        raise ValueError(f"Unknown loss_type: '{loss_type}'")
 
 def train(
     model: torch.nn.Module,
@@ -43,6 +47,7 @@ def train(
     ) -> float:
     model.train()
     loss_all = 0
+    num_batches = 0
 
     for i, data in enumerate(train_loader):
         data = data.to(device)
@@ -56,8 +61,9 @@ def train(
         if (i + 1) % accumulation_steps == 0:
             optimizer.step()
             optimizer.zero_grad()
+        num_batches = i + 1
 
-    if (i + 1) % accumulation_steps != 0:
+    if num_batches > 0 and num_batches % accumulation_steps != 0:
         optimizer.step()
         optimizer.zero_grad()
 

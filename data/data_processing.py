@@ -90,11 +90,6 @@ class DataProcessing():
         return dataset
 
     def split_dataset(self) -> tuple[Subset, Subset, Subset, Graph]:
-        train_dataset = None
-        val_dataset = None
-        test_dataset = None
-        pred_dataset = None
-
         pred_dataset = self.dataset
 
         if self.cfg.data.split_method == 'random':

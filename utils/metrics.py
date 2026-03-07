@@ -27,7 +27,7 @@ class Metrics():
     def RD_each(self) -> torch.Tensor:
         return (self.pred - self.target) / self.target
 
-    def MRD(self):
+    def MRD(self) -> float:
         rd_each = self.RD_each()
         max_val = torch.max(rd_each).item()
         min_val = torch.min(rd_each).item()

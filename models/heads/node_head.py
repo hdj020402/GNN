@@ -17,15 +17,17 @@ class NodePredictionHead(nn.Module):
         num_targets: Number of prediction targets.
         node_dim: Hidden dimension for the MLP.
         use_dropout: Whether to apply Dropout inside the MLP.
+        dropout_p: Dropout probability (default 0.5).
     """
 
     def __init__(self, backbone_dim: int, dataset, num_targets: int,
-                 node_dim: int = 64, use_dropout: bool = False):
+                 node_dim: int = 64, use_dropout: bool = False,
+                 dropout_p: float = 0.5):
         super().__init__()
         lin1_in = backbone_dim + dataset.num_graph_features
         self.lin1 = Linear(lin1_in, node_dim)
         self.norm1 = LayerNorm(node_dim)
-        self.drop1 = nn.Dropout(0.5) if use_dropout else None
+        self.drop1 = nn.Dropout(dropout_p) if use_dropout else None
         self.lin2 = Linear(node_dim, num_targets)
 
     def forward(self, node_features: torch.Tensor, data) -> torch.Tensor:

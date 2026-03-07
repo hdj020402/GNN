@@ -38,4 +38,4 @@ class GPUMonitor:
 
     def stop(self) -> None:
         self.running = False
-        self.thread.join()
+        self.thread.join(timeout=self.interval + 5)
