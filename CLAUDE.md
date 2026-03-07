@@ -106,17 +106,19 @@ Replace `<MODE>` with `Training`, `HPTuning`, or `Prediction` as appropriate.
 **File Organization:**
 ```
 gnn/
-├── datasets/          # Dataset loading and transformation
-├── nets/             # Model definitions
-├── utils/            # Training, evaluation, utilities
-├── envs/             # Requirements files
-├── docs/             # Documentation
-├── model_parameters.yml          # Main configuration
-├── hparam_tuning.yml            # Hyperparameter tuning config (optional)
-├── Training_Recording/          # Output: training results
-├── HPTuning_Recording/          # Output: hyperparameter tuning results
-├── Prediction_Recording/        # Output: predictions
-└── main.py           # Entry point
+├── configs/              # Configuration files and schemas
+├── data/                 # Dataset loading and transformation
+├── nets/                 # Model definitions
+├── utils/                # Training, evaluation, utilities
+├── envs/                 # Requirements files
+├── docs/                 # Documentation
+├── model_parameters.yml  # Main configuration
+├── hparam_tuning.yml     # Hyperparameter tuning config (optional)
+├── Recording/            # Output directory (unified)
+│   ├── Training_Recording/        # Training results
+│   ├── HPTuning_Recording/        # Hyperparameter tuning results
+│   └── Prediction_Recording/      # Predictions
+└── main.py               # Entry point
 ```
 
 ## Important Implementation Details
