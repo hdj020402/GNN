@@ -36,5 +36,5 @@ class Metrics():
         else:
             return min_val
 
-    def Cosine(self, dim: int | None):
+    def Cosine(self, dim: int | None) -> torch.Tensor:
         return F.cosine_similarity(self.pred, self.target, dim=1).mean(dim=dim)

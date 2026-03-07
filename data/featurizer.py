@@ -36,7 +36,6 @@ def get_node_attr(
     atom_type: list,
     _node_attr_dict: dict[str, list],
     node_attr_list: list,
-    filter: list,
     ) -> tuple[torch.Tensor, torch.Tensor]:
     '''Generate node feature matrix and 3-D coordinates for one molecule.
 
@@ -48,7 +47,6 @@ def get_node_attr(
             Unknown elements are mapped to the last slot (UNK).
         _node_attr_dict: per-molecule custom node attributes keyed by column name.
         node_attr_list: column names to read from _node_attr_dict.
-        filter: column indices to drop from the final feature matrix.
 
     Returns:
         x   (torch.Tensor, shape [N, D]): node feature matrix.
@@ -123,12 +121,6 @@ def get_node_attr(
 
     mol_node_attr = np.concatenate(mol_node_attr_list, axis=1, dtype=float)
 
-    # column filter
-    keep = np.ones(mol_node_attr.shape[1], dtype=bool)
-    for idx in filter:
-        keep[idx] = False
-    mol_node_attr = mol_node_attr[:, keep]
-
     return torch.tensor(mol_node_attr, dtype=torch.float), pos
 
 
@@ -147,7 +139,6 @@ def get_edge_attr(
     default_edge_attr: dict,
     _edge_attr_dict: dict[str, list],
     edge_attr_list: list,
-    filter: list,
     ) -> torch.Tensor | None:
     '''Generate edge feature matrix for one molecule.
 
@@ -159,7 +150,6 @@ def get_edge_attr(
             construction), so it is ignored here.
         _edge_attr_dict: per-molecule custom edge attributes keyed by column name.
         edge_attr_list: column names to read from _edge_attr_dict.
-        filter: column indices to drop from the final feature matrix.
 
     Returns:
         edge_attr (torch.Tensor, shape [2M, D]) or None if no features are enabled.
@@ -206,11 +196,5 @@ def get_edge_attr(
 
     if edge_attr_mat.size:
         mol_edge_attr = np.concatenate([mol_edge_attr, edge_attr_mat], axis=1)
-
-    # column filter
-    keep = np.ones(mol_edge_attr.shape[1], dtype=bool)
-    for idx in filter:
-        keep[idx] = False
-    mol_edge_attr = mol_edge_attr[:, keep]
 
     return torch.tensor(mol_edge_attr, dtype=torch.float)

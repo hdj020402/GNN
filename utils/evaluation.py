@@ -8,14 +8,14 @@ from configs.schema import AppConfig
 class Evaluation():
     def __init__(
         self,
-        DataLoader: DataLoader,
+        data_loader: DataLoader,
         model: nn.Module,
         cfg: AppConfig,
         device: torch.device,
         norm_dict: dict[str, tuple[torch.Tensor, torch.Tensor]],
         ) -> None:
         self.cfg = cfg
-        self.DataLoader = DataLoader
+        self.data_loader = data_loader
         self.model = model
         self.device = device
         mean, std = norm_dict['y']
@@ -30,7 +30,7 @@ class Evaluation():
         sum_pred = []
         sum_target = []
         with torch.no_grad():
-            for data in self.DataLoader:
+            for data in self.data_loader:
                 data = data.to(self.device)
                 with torch.autocast(device_type=self.device.type, dtype=torch.bfloat16, enabled=self.use_amp):
                     output = self.model(data)
@@ -47,7 +47,7 @@ class Evaluation():
         sum_pred = torch.cat(sum_pred)
         sum_target = torch.cat(sum_target)
 
-        if not self.cfg.data.target_type == 'vector':
+        if self.cfg.data.target_type != 'vector':
             sum_pred = sum_pred * self.std + self.mean
             sum_pred = self.target_inverse_transform(sum_pred)
             sum_target = sum_target * self.std + self.mean
@@ -55,12 +55,14 @@ class Evaluation():
 
         return sum_pred, sum_target
 
-    def target_inverse_transform(self, data: torch.tensor):
+    def target_inverse_transform(self, data: torch.Tensor) -> torch.Tensor:
         if self.transform == 'LN':
-            return torch.e ** data
+            return torch.exp(data)
         elif self.transform == 'LG':
             return 10 ** data
         elif self.transform == 'E^-x':
             return -torch.log(data)
         elif not self.transform:
             return data
+        else:
+            raise ValueError(f"Unknown target_transform: '{self.transform}'")

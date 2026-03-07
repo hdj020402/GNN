@@ -61,8 +61,6 @@ class Graph(InMemoryDataset):
                  graph_attr_list: list[str]=[],
                  target_type: Literal['graph', 'node', 'edge']='graph',
                  target_list: list[str]=[],
-                 node_attr_filter: int | list=[],
-                 edge_attr_filter: int | list=[],
                  pos: bool=True,
                  graph_type: str='bond',
                  sanitize: bool=True,
@@ -83,8 +81,6 @@ class Graph(InMemoryDataset):
             edge_attr_list: list containing edge attr(s) demanding consideration,
             graph_attr_list: list containing graph attr(s) demanding consideration,
             target_list: list containing the target(s),
-            node_attr_filter: index of node attr(s) to be filtered(default to []),
-            edge_attr_filter: index of edge attr(s) to be filtered(default to []),
             reprocess: whether to force reprocess the dataset.
 
         Return:
@@ -107,8 +103,6 @@ class Graph(InMemoryDataset):
         self.graph_attr_list = graph_attr_list
         self.target_type = target_type
         self.target_list = target_list
-        self.node_attr_filter = [node_attr_filter] if isinstance(node_attr_filter, int) else node_attr_filter  # TODO: Implement this
-        self.edge_attr_filter = [edge_attr_filter] if isinstance(edge_attr_filter, int) else edge_attr_filter  # TODO: Implement this
         self.pos = pos
         self.graph_type = graph_type
         self.sanitize = sanitize
@@ -236,7 +230,6 @@ class Graph(InMemoryDataset):
                                    self.atom_type,
                                    _node_attr_dict,
                                    self.node_attr_list,
-                                   self.node_attr_filter,
                                    )
             if not self.pos:
                 pos = None
@@ -247,7 +240,6 @@ class Graph(InMemoryDataset):
                                       self.default_edge_attr,
                                       _edge_attr_dict,
                                       self.edge_attr_list,
-                                      self.edge_attr_filter,
                                       )
             # edge index(adj matrix)
             edge_index = get_adj_mat(mol)

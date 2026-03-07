@@ -1,7 +1,10 @@
-import os, time, yaml, json
+import os
+import time
+import json
 os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
 os.environ["PYTHONHASHSEED"] = "0"
-import torch, optuna
+import torch
+import optuna
 from copy import deepcopy
 from functools import partial
 from typing import cast
@@ -61,7 +64,7 @@ def training(cfg: AppConfig, trial: optuna.Trial | None = None) -> float:
     dp_timer.end()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = gen_model(cfg, dataset)
+    model = gen_model(cfg, dataset, device)
     optimizer = gen_optimizer(cfg, model)
     scheduler = gen_scheduler(cfg, optimizer)
 
@@ -180,7 +183,7 @@ def prediction(cfg: AppConfig) -> None:
         loader = pred_loader
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = gen_model(cfg, dataset)
+    model = gen_model(cfg, dataset, device)
     optimizer = gen_optimizer(cfg, model)
     fp.pre_train(model, optimizer, device)
 
@@ -276,6 +279,9 @@ def main(cfg: DictConfig) -> None:
     setup_seed(_cfg.seed, _cfg.use_deterministic)
     if _cfg.use_deterministic:
         torch.use_deterministic_algorithms(True)
+
+    if torch.cuda.is_available() and _cfg.GPU_memo_frac < 1.0:
+        torch.cuda.set_per_process_memory_fraction(_cfg.GPU_memo_frac)
 
     if _cfg.mode in ['training', 'fine-tuning']:
         training(_cfg)

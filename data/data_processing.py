@@ -17,7 +17,7 @@ _REPROCESS_KEYS = [
     'sdf_file', 'node_attr_file', 'edge_attr_file', 'graph_attr_file',
     'weight_file', 'atom_type', 'default_node_attr', 'default_edge_attr',
     'node_attr_list', 'edge_attr_list', 'graph_attr_list',
-    'node_attr_filter', 'edge_attr_filter', 'pos', 'graph_type', 'sanitize',
+    'pos', 'graph_type', 'sanitize',
     'target_list', 'target_transform',
 ]
 
@@ -26,7 +26,6 @@ class DataProcessing():
     def __init__(self, cfg: AppConfig) -> None:
         self.cfg = cfg
         self.reprocess = self._should_reprocess()
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.dataset = self.gen_dataset()
         self.train_dataset, self.val_dataset, self.test_dataset, self.pred_dataset = self.split_dataset()
         self.norm_dict = self.get_mean_std()
@@ -66,8 +65,6 @@ class DataProcessing():
             graph_attr_list=list(d.graph_attr_list),
             target_type=d.target_type,
             target_list=list(d.target_list),
-            node_attr_filter=list(d.node_attr_filter),
-            edge_attr_filter=list(d.edge_attr_filter),
             pos=d.pos,
             graph_type=d.graph_type,
             sanitize=d.sanitize,

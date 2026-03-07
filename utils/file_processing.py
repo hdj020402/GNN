@@ -75,28 +75,36 @@ class FileProcessing:
             else:
                 self.error_dict[subtask] = {'Train': {}, 'Val': {}, 'Test': {}}
 
+        # ── Compute base directory ────────────────────────────────────────
+        if self.cfg.mode == 'prediction':
+            self._base_dir = f'Recording/Prediction_Recording/{self.jobtype}/{self.TIME}'
+        elif self.cfg.mode == 'hparam_tuning':
+            self._base_dir = f'Recording/HPTuning_Recording/{self.jobtype}/{self.TIME}'
+        else:
+            self._base_dir = f'Recording/Training_Recording/{self.jobtype}/{self.TIME}'
+
         if self.cfg.mode == 'prediction':
             self.error_dict = {}
             for subtask in self.subtasks:
                 self.error_dict[subtask] = {'Pred': {}}
-            os.makedirs(f'Recording/Prediction_Recording/{self.jobtype}/{self.TIME}')
-            OmegaConf.save(self._record_cfg, f'Recording/Prediction_Recording/{self.jobtype}/{self.TIME}/model_parameters.yml')
-            self.plot_dir = f'Recording/Prediction_Recording/{self.jobtype}/{self.TIME}/Plot'
+            os.makedirs(self._base_dir)
+            OmegaConf.save(self._record_cfg, f'{self._base_dir}/model_parameters.yml')
+            self.plot_dir = f'{self._base_dir}/Plot'
             os.makedirs(self.plot_dir)
             make_subtask_dir(self.plot_dir)
-            self.data_dir = f'Recording/Prediction_Recording/{self.jobtype}/{self.TIME}/Data'
+            self.data_dir = f'{self._base_dir}/Data'
             os.makedirs(self.data_dir)
             make_subtask_dir(self.data_dir)
-            self.model_dir = f'Recording/Prediction_Recording/{self.jobtype}/{self.TIME}/Model'
+            self.model_dir = f'{self._base_dir}/Model'
             os.makedirs(self.model_dir)
             shutil.copy(self.cfg.pretrained_model, self.model_dir)
-            self.log_file = f'Recording/Prediction_Recording/{self.jobtype}/{self.TIME}/prediction_{self.TIME}.log'
+            self.log_file = f'{self._base_dir}/prediction_{self.TIME}.log'
             self.prediction_logger = setup_logger(f'prediction_{self.TIME}_logger', self.log_file)
 
         elif self.cfg.mode == 'hparam_tuning':
-            os.makedirs(f'Recording/HPTuning_Recording/{self.jobtype}/{self.TIME}', exist_ok=True)
-            self.optuna_log = f'Recording/HPTuning_Recording/{self.jobtype}/{self.TIME}/hptuning_{self.TIME}.log'
-            self.optuna_db = f'sqlite:///Recording/HPTuning_Recording/{self.jobtype}/{self.TIME}/hptuning_{self.TIME}.db'
+            os.makedirs(self._base_dir, exist_ok=True)
+            self.optuna_log = f'{self._base_dir}/hptuning_{self.TIME}.log'
+            self.optuna_db = f'sqlite:///{self._base_dir}/hptuning_{self.TIME}.db'
             self.hptuning_logger = setup_logger(f'hptuning_{self.TIME}_logger', self.optuna_log)
 
             if self.trial is None:
@@ -104,36 +112,38 @@ class FileProcessing:
 
             n_trials = self.cfg.optuna.n_trials
             trial_name = f'Trial_{self.trial.number:0{len(str(n_trials))}d}'
-            os.makedirs(f'Recording/HPTuning_Recording/{self.jobtype}/{self.TIME}/{trial_name}')
-            OmegaConf.save(self._record_cfg, f'Recording/HPTuning_Recording/{self.jobtype}/{self.TIME}/{trial_name}/model_parameters.yml')
-            if not os.path.exists(f'Recording/HPTuning_Recording/{self.jobtype}/{self.TIME}/hparam_tuning.yml'):
-                OmegaConf.save(self.cfg.optuna, f'Recording/HPTuning_Recording/{self.jobtype}/{self.TIME}/hparam_tuning.yml')
-            self.plot_dir =  f'Recording/HPTuning_Recording/{self.jobtype}/{self.TIME}/{trial_name}/Plot'
+            trial_dir = f'{self._base_dir}/{trial_name}'
+            os.makedirs(trial_dir)
+            OmegaConf.save(self._record_cfg, f'{trial_dir}/model_parameters.yml')
+            if not os.path.exists(f'{self._base_dir}/hparam_tuning.yml'):
+                OmegaConf.save(self.cfg.optuna, f'{self._base_dir}/hparam_tuning.yml')
+            self.plot_dir = f'{trial_dir}/Plot'
             os.makedirs(self.plot_dir)
             make_subtask_dir(self.plot_dir)
-            self.model_dir = f'Recording/HPTuning_Recording/{self.jobtype}/{self.TIME}/{trial_name}/Model'
+            self.model_dir = f'{trial_dir}/Model'
             os.makedirs(self.model_dir)
-            self.ckpt_dir = f'Recording/HPTuning_Recording/{self.jobtype}/{self.TIME}/{trial_name}/Model/checkpoint'
+            self.ckpt_dir = f'{trial_dir}/Model/checkpoint'
             os.makedirs(self.ckpt_dir)
-            self.log_file = f'Recording/HPTuning_Recording/{self.jobtype}/{self.TIME}/{trial_name}/training_{trial_name}.log'
+            self.log_file = f'{trial_dir}/training_{trial_name}.log'
             self.training_logger = setup_logger(f'training_{trial_name}_logger', self.log_file)
-            self.tensorboard_dir = f'Recording/HPTuning_Recording/{self.jobtype}/{self.TIME}/{trial_name}/TensorBoard'
+            self.tensorboard_dir = f'{trial_dir}/TensorBoard'
 
         else:
-            os.makedirs(f'Recording/Training_Recording/{self.jobtype}/{self.TIME}')
-            OmegaConf.save(self._record_cfg, f'Recording/Training_Recording/{self.jobtype}/{self.TIME}/model_parameters.yml')
-            self.plot_dir = f'Recording/Training_Recording/{self.jobtype}/{self.TIME}/Plot'
+            os.makedirs(self._base_dir)
+            OmegaConf.save(self._record_cfg, f'{self._base_dir}/model_parameters.yml')
+            self.plot_dir = f'{self._base_dir}/Plot'
             os.makedirs(self.plot_dir)
             make_subtask_dir(self.plot_dir)
-            self.model_dir = f'Recording/Training_Recording/{self.jobtype}/{self.TIME}/Model'
+            self.model_dir = f'{self._base_dir}/Model'
             os.makedirs(self.model_dir)
-            self.ckpt_dir = f'Recording/Training_Recording/{self.jobtype}/{self.TIME}/Model/checkpoint'
+            self.ckpt_dir = f'{self._base_dir}/Model/checkpoint'
             os.makedirs(self.ckpt_dir)
-            if not os.path.isdir(f'Recording/Training_Recording/{self.jobtype}/recording'):
-                os.makedirs(f'Recording/Training_Recording/{self.jobtype}/recording')
-            self.log_file = f'Recording/Training_Recording/{self.jobtype}/{self.TIME}/training_{self.TIME}.log'
+            recording_dir = f'Recording/Training_Recording/{self.jobtype}/recording'
+            if not os.path.isdir(recording_dir):
+                os.makedirs(recording_dir)
+            self.log_file = f'{self._base_dir}/training_{self.TIME}.log'
             self.training_logger = setup_logger(f'training_{self.TIME}_logger', self.log_file)
-            self.tensorboard_dir = f'Recording/Training_Recording/{self.jobtype}/{self.TIME}/TensorBoard'
+            self.tensorboard_dir = f'{self._base_dir}/TensorBoard'
 
         self.gpu_logger = setup_logger(f'gpu_{self.TIME}_logger', f'{os.path.dirname(self.log_file)}/gpu_monitor.log')
 

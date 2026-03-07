@@ -112,7 +112,7 @@ def corr_heatmap(
 def hist(
     data: ArrayLike,
     bins: int,
-    range: tuple,
+    value_range: tuple,
     output_path: str,
     title: str = None,
     xlabel: str = None,   # e.g. r'Value $(g \cdot cm^3)$'
@@ -124,7 +124,7 @@ def hist(
         bins = bins,
         color = '#03658C',
         alpha=1,
-        range = range,
+        range = value_range,
         edgecolor = 'white'
         )
 
@@ -262,16 +262,16 @@ def scatterFromModel(model_path: str, cfg, DATA, output_dir: str):
     val_loader = DATA.val_loader
     test_loader = DATA.test_loader
 
-    model = gen_model(cfg, DATA.dataset)
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model = gen_model(cfg, DATA.dataset, device)
     try:
-        _model = torch.load(model_path, map_location='cuda' if torch.cuda.is_available() else 'cpu')
+        _model = torch.load(model_path, map_location=device)
     except FileNotFoundError:
         return
     if model_path.endswith('pkl'):
         model = _model
     elif model_path.endswith('pth'):
         model.load_state_dict(_model['model'])
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model.eval()
 
     eval_class = partial(

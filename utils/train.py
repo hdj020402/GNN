@@ -2,7 +2,6 @@ from typing import Literal
 from torch_geometric.loader import DataLoader
 import torch
 import torch.nn.functional as F
-from torch.optim import AdamW, Adam, SGD
 
 def weighted_loss(
     pred: torch.Tensor,
@@ -36,7 +35,7 @@ def unweighted_loss(
 def train(
     model: torch.nn.Module,
     train_loader: DataLoader,
-    optimizer: AdamW | SGD | Adam,
+    optimizer: torch.optim.Optimizer,
     loss_fn: Literal['MAE', 'MSE', 'Cosine'],
     device: torch.device,
     accumulation_steps: int = 1,

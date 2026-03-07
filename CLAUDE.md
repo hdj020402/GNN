@@ -19,8 +19,8 @@ pip install -r envs/requirements-cpu.txt
 ```
 
 **Parameter Configuration:**
-1. Create `model_parameters.yml` in the `gnn/` directory (copy from `model_parameters_example.yml`)
-2. Optionally create `hparam_tuning.yml` for hyperparameter tuning mode
+Configuration is managed via Hydra with YAML config groups in `configs/`.
+Override settings on the command line or by editing the YAML files under `configs/`.
 
 ## Running the System
 
@@ -31,7 +31,7 @@ Training, hyperparameter tuning, and prediction all use the same entry point:
 python main.py
 ```
 
-The behavior is determined by the `mode` setting in `model_parameters.yml`:
+The behavior is determined by the `mode` setting in the config:
 - `training`: Train a model with fixed parameters
 - `hparam_tuning`: Optimize hyperparameters using Optuna
 - `prediction`: Generate predictions using a pre-trained model
@@ -39,39 +39,36 @@ The behavior is determined by the `mode` setting in `model_parameters.yml`:
 
 To run in the background with logging:
 ```bash
-nohup python main.py > <MODE>_Recording/recording.log 2>&1 &
+nohup python main.py > recording.log 2>&1 &
 ```
-
-Replace `<MODE>` with `Training`, `HPTuning`, or `Prediction` as appropriate.
 
 ## High-Level Architecture
 
 ### Data Flow Pipeline
 
-1. **Data Processing** (`utils/data_processing.py`):
+1. **Data Processing** (`data/data_processing.py`):
    - Loads molecular structures from SDF files
    - Processes node/edge/graph attributes
    - Creates PyTorch Geometric Data objects
    - Handles data normalization (stored in `norm_dict` for later use)
    - Splits data into train/validation/test sets
 
-2. **Graph Dataset** (`datasets/graph_dataset.py`):
+2. **Graph Dataset** (`data/graph_dataset.py`):
    - Inherits from PyTorch Geometric's InMemoryDataset
-   - Applies feature transformations and filters
+   - Applies feature transformations
    - Generates default attributes (element type, aromatic flags, bond types, etc.)
    - Supports custom node, edge, and graph-level attributes
 
-3. **Model Architecture** (`nets/`):
-   - **Graph-level prediction**: Uses NNConv (message passing with edge features) + Set2Set pooling + GRU for temporal modeling
-   - **Node-level prediction**: Uses NNConv + GRU layers
-   - Configurable dimensions via `dim_conv` and `dim_linear` parameters
-   - Message passing iterations controlled by `mp_times` parameter
-   - Graph-level features can be concatenated with readout before final prediction
+3. **Model Architecture** (`models/`):
+   - **Backbone + Head** architecture: backbone handles message passing, head handles readout
+   - Backbones: MPNN, GCN, GAT, GIN, SchNet, DimeNet, PaiNN, MACE, GPS, Transformer
+   - Heads: graph-level (pooling → MLP) and node-level
+   - Configured via `configs/model/` YAML groups
 
 4. **Training Loop** (`utils/train.py`, `main.py`):
    - Single function `train()` for one epoch of training with gradient accumulation
    - Single function `validate()` for validation without gradient updates
-   - Supports multiple loss functions: MAE, MSE
+   - Supports multiple loss functions: MAE, MSE, Cosine
    - Evaluation metrics: MAE, MSE, RMSD, R², AARD, Cosine Similarity
    - Early stopping based on validation loss
    - Learning rate scheduling via ReduceLROnPlateau
@@ -79,14 +76,13 @@ Replace `<MODE>` with `Training`, `HPTuning`, or `Prediction` as appropriate.
 5. **Model Management**:
    - **Saving** (`utils/save_model.py`): Tracks best model by loss, saves checkpoints at regular intervals
    - **Loading** (`utils/gen_model.py`): Generates model from dataset and parameters, loads pre-trained weights
-   - **Normalization**: `norm_dict` contains per-target normalization factors (mean/std) for denormalization during evaluation
+   - **Normalization**: `norm_dict['y']` returns a `(mean, std)` tuple used for denormalization during evaluation
 
 ### Key Module Relationships
 
 - **FileProcessing** (`utils/file_processing.py`): Creates directory structures, manages loggers, tracks error metrics
 - **Evaluation** (`utils/evaluation.py`): Computes predictions and denormalizes using `norm_dict`
-- **Post-processing** (`utils/post_processing.py`): Parses log files, extracts performance metrics
-- **Plotting** (`utils/plot.py`, `utils/plot_model.py`): Generates loss curves and scatter plots
+- **Visualization** (`utils/visualization.py`): Generates scatter plots, histograms, bar charts, and correlation heatmaps
 - **Optuna Setup** (`utils/optuna_setup.py`): Configures hyperparameter optimization trials
 
 ### Data Format & Conventions
@@ -96,7 +92,7 @@ Replace `<MODE>` with `Training`, `HPTuning`, or `Prediction` as appropriate.
   - `graph`: Shape `[num_graphs, num_targets]`
   - `node`: Shape `[num_nodes, num_targets]`
   - `edge`: Shape `[num_edges, num_targets]`
-- Normalization applied per-target via `norm_dict['<target_name>']['mean']` and `['std']`
+- Normalization applied per-attribute via `norm_dict[attr]` → `(mean, std)` tuple
 
 **Batch Processing:**
 - Data loader returns PyTorch Geometric Data objects with batch information
@@ -106,14 +102,12 @@ Replace `<MODE>` with `Training`, `HPTuning`, or `Prediction` as appropriate.
 **File Organization:**
 ```
 gnn/
-├── configs/              # Configuration files and schemas
+├── configs/              # Hydra configuration files and schemas
 ├── data/                 # Dataset loading and transformation
-├── nets/                 # Model definitions
+├── models/               # Model definitions (backbones + heads)
 ├── utils/                # Training, evaluation, utilities
 ├── envs/                 # Requirements files
 ├── docs/                 # Documentation
-├── model_parameters.yml  # Main configuration
-├── hparam_tuning.yml     # Hyperparameter tuning config (optional)
 ├── Recording/            # Output directory (unified)
 │   ├── Training_Recording/        # Training results
 │   ├── HPTuning_Recording/        # Hyperparameter tuning results
@@ -126,9 +120,9 @@ gnn/
 ### Denormalization & Evaluation
 
 When evaluating predictions, targets must be denormalized using the normalization dictionary stored during data processing:
-- Stored in `norm_dict['<target_name>']['mean']` and `['std']`
+- Stored in `norm_dict['y']` as a `(mean, std)` tuple
 - Used by `Evaluation` class to compute metrics on original scale
-- Critical for multi-target prediction: each target has separate normalization
+- Critical for multi-target prediction: normalization is computed per-column
 
 ### GPU Memory Management
 
@@ -146,22 +140,23 @@ When evaluating predictions, targets must be denormalized using the normalizatio
 ## Common Development Tasks
 
 **Adding a new metric:**
-- Add method to `calc_error.py` class, add to `criteria_list` in parameters
+- Add method to `utils/metrics.py` Metrics class, add to `criteria_list` in parameters
 
 **Adding a new model type:**
-- Create model class in `nets/`, update `gen_model.py` to instantiate based on parameters
+- Create backbone class in `models/backbones/`, register in `models/factory.py`
 
 **Modifying data processing:**
-- Edit `datasets/graph_dataset.py` for attribute generation or `utils/data_processing.py` for loading/normalization
+- Edit `data/graph_dataset.py` for attribute generation or `data/data_processing.py` for loading/normalization
 
 **Debugging training:**
-- Check logs in `Training_Recording/<jobtype>/<TIME>/training_<TIME>.log`
+- Check logs in `Recording/Training_Recording/<jobtype>/<TIME>/training_<TIME>.log`
 - Monitor GPU memory in `gpu_monitor.log`
 - Scatter plots in `Plot/` directory show prediction quality
+- TensorBoard logs in `TensorBoard/` directory
 
 ## Code Style & Conventions
 
 - Type hints use `dict` instead of `Dict` (Python 3.10+ style)
-- Configuration files are YAML format
+- Configuration via Hydra YAML groups in `configs/`
 - Logging via Python's `logging` module to both file and console
 - Model checkpoints include optimizer state for resumable training

@@ -37,10 +37,6 @@ node_attr_list: []
 edge_attr_list: []
 graph_attr_list: []
 
-# ─── Attribute filters (columns to drop after one-hot expansion) ───────────────
-node_attr_filter: []
-edge_attr_filter: []
-
 pos: true                    # Include 3-D coordinates (required for equivariant models)
 
 # ─── Sanitization ──────────────────────────────────────────────────────────────

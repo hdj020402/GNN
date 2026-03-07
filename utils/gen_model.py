@@ -7,8 +7,7 @@ from configs.schema import AppConfig
 from models.factory import create_model
 
 
-def gen_model(cfg: AppConfig, dataset) -> torch.nn.Module:
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+def gen_model(cfg: AppConfig, dataset, device: torch.device) -> torch.nn.Module:
     backbone_d: dict = OmegaConf.to_container(cfg.model.backbone, resolve=True)
     backbone_name = backbone_d.pop('name')
     head_d: dict = OmegaConf.to_container(cfg.model.head, resolve=True)
