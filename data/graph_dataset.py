@@ -132,6 +132,19 @@ class Graph(InMemoryDataset):
                 self.num_edge_features +
                 self.num_graph_features)
 
+    @property
+    def idx_map(self) -> dict[int, int]:
+        '''Mapping from original SDF index to dataset position.
+
+        During processing, molecules may be skipped (sanitization failure,
+        mol is None, etc.), so original SDF index != dataset position.
+        This property provides {sdf_index: dataset_position} for remapping
+        external index references (e.g. manual split files).
+        '''
+        if not hasattr(self, '_idx_map'):
+            self._idx_map = {int(v): i for i, v in enumerate(self.data.idx.tolist())}
+        return self._idx_map
+
     def _reprocess(self):
         if os.path.exists(os.path.join(self.root, 'processed/')):
             shutil.rmtree(os.path.join(self.root, 'processed/'))
@@ -204,7 +217,18 @@ class Graph(InMemoryDataset):
                 weights = [torch.ones_like(t) for t in target]
         else:
             with open(self.weight_file) as wf:
-                weights = json.load(wf)
+                raw_weights = json.load(wf)
+            if self.target_type in ['graph', 'vector']:
+                weights = torch.tensor(
+                    raw_weights, dtype=torch.float
+                ).reshape(-1, len(self.target_list))
+            else:
+                weights = [
+                    torch.tensor(w, dtype=torch.float).reshape(
+                        -1, len(self.target_list)
+                    )
+                    for w in raw_weights
+                ]
 
         # extract raw attrs from structures and generate graph
         data_list = []
@@ -248,14 +272,14 @@ class Graph(InMemoryDataset):
                 [atom.GetAtomicNum() for atom in mol.GetAtoms()],
                 dtype=torch.long
             )
-            # target
-            y = target[i]
+            # target — slice indexing keeps 2D shape for graph/vector targets
+            y = target[i:i+1] if isinstance(target, torch.Tensor) else target[i]
             # weight
-            weight = weights[i]
+            weight = weights[i:i+1] if isinstance(weights, torch.Tensor) else weights[i]
             # graph name
             name = mol.GetProp('_Name')
-            # graph attr
-            g_a = graph_attr[i]
+            # graph attr (always a tensor)
+            g_a = graph_attr[i:i+1]
             # create mol graph
             data = Data(x=x, z=z, pos=pos, edge_index=edge_index,
                         edge_attr=edge_attr, y=y, graph_attr=g_a, weight=weight,

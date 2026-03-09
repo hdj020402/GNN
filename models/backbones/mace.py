@@ -33,6 +33,10 @@ import torch
 import torch.nn as nn
 from torch_geometric.nn import radius_graph
 
+# e3nn 0.6.x uses torch.load() without weights_only=False, which fails on
+# PyTorch 2.6+ where the default changed to weights_only=True.
+torch.serialization.add_safe_globals([slice])
+
 from e3nn import o3
 from mace.modules import (
     RealAgnosticInteractionBlock,

@@ -79,7 +79,7 @@ def get_node_attr(
         nhs = sum(1 for nb in neighbors if nb.GetAtomicNum() == 1)
         num_hs.append(nhs)
         hyb_idx = _HYBRIDIZATION_TYPE.get(atom.GetHybridization(), len(_HYBRIDIZATION_TYPE))
-        hybridization.append(one_hot(hyb_idx, len(_HYBRIDIZATION_TYPE)))
+        hybridization.append(one_hot(hyb_idx, len(_HYBRIDIZATION_TYPE) + 1))
         in_ring.append(1 if atom.IsInRing() else 0)
         formal_charge.append(atom.GetFormalCharge())
 

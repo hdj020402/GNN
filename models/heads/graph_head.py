@@ -26,6 +26,7 @@ class GraphPredictionHead(nn.Module):
             - 'sum': Global sum pooling.
         processing_steps: Number of LSTM steps for Set2Set (ignored for other readouts).
         node_dim: Hidden dimension for the MLP.
+        use_layer_norm: Whether to apply LayerNorm inside the MLP.
         use_dropout: Whether to apply Dropout inside the MLP.
         dropout_p: Dropout probability (default 0.5).
     """
@@ -33,7 +34,8 @@ class GraphPredictionHead(nn.Module):
     def __init__(self, backbone_dim: int, dataset, num_targets: int,
                  readout: Literal['set2set', 'mean', 'max', 'sum'] = 'set2set',
                  processing_steps: int = 3, node_dim: int = 64,
-                 use_dropout: bool = False, dropout_p: float = 0.5):
+                 use_layer_norm: bool = False, use_dropout: bool = False,
+                 dropout_p: float = 0.5):
         super().__init__()
         self.readout = readout
 
@@ -47,7 +49,7 @@ class GraphPredictionHead(nn.Module):
         # MLP: (aggregated node features + graph attributes) → predictions
         lin1_in = agg_out_dim + dataset.num_graph_features
         self.lin1 = Linear(lin1_in, node_dim)
-        self.norm1 = LayerNorm(node_dim)
+        self.norm1 = LayerNorm(node_dim) if use_layer_norm else None
         self.drop1 = nn.Dropout(dropout_p) if use_dropout else None
         self.lin2 = Linear(node_dim, num_targets)
 
@@ -79,7 +81,10 @@ class GraphPredictionHead(nn.Module):
         else:
             combined = graph_feat
 
-        out = F.relu(self.norm1(self.lin1(combined)))
+        out = self.lin1(combined)
+        if self.norm1 is not None:
+            out = self.norm1(out)
+        out = F.relu(out)
         if self.drop1 is not None:
             out = self.drop1(out)
         return self.lin2(out)

@@ -1,3 +1,4 @@
 name: gin
 node_dim: 64
 num_layers: 3
+use_layer_norm: true

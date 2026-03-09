@@ -104,10 +104,11 @@ class DataProcessing():
                 )
 
         elif self.cfg.data.split_method == 'manual':
-            indices = np.load(self.cfg.data.split_file, allow_pickle=True)
-            train_dataset = Subset(self.dataset, indices[0])
-            val_dataset = Subset(self.dataset, indices[1])
-            test_dataset = Subset(self.dataset, indices[2])
+            split_indices = np.load(self.cfg.data.split_file, allow_pickle=True)
+            remap = self.dataset.idx_map
+            train_dataset = Subset(self.dataset, [remap[int(i)] for i in split_indices[0]])
+            val_dataset = Subset(self.dataset, [remap[int(i)] for i in split_indices[1]])
+            test_dataset = Subset(self.dataset, [remap[int(i)] for i in split_indices[2]])
 
         else:
             raise NotImplementedError("Split method not implemented.")
@@ -172,11 +173,10 @@ class DataProcessing():
             norm_dict = {}
             for attr in ['x', 'edge_attr', 'y', 'graph_attr', ]:
                 data: torch.Tensor = getattr(train_dataset, attr)
-                if data is None:
+                if data is None or data.numel() == 0:
                     continue
-                data = data.view(-1, data.shape[-1])
-                if data.numel() == 0:
-                    continue
+                if data.dim() == 1:
+                    data = data.unsqueeze(-1)
                 mean = data.mean(dim=0)
                 std = data.std(dim=0).clamp(min=1e-8)
                 norm_dict[attr] = (mean, std)

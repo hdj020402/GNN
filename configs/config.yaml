@@ -14,11 +14,14 @@ mode: training  # training / hparam_tuning / prediction / fine-tuning
 # Global settings
 seed: 42
 use_deterministic: true   # false → allow non-deterministic CUDA kernels for speed
-GPU_memo_frac: 0.5
+GPU_memo_frac: 1
 pretrained_model: null   # Path to a .pth checkpoint; required for prediction / fine-tuning
 timestamp: ""            # Populated at runtime in main() via OmegaConf.update()
 
 # Prevent Hydra from changing the working directory (already the default in 1.3)
 hydra:
+  run:
+    dir: .
+  output_subdir: null
   job:
     chdir: false

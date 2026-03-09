@@ -106,8 +106,16 @@ def training(cfg: AppConfig, trial: optuna.Trial | None = None) -> float:
                         ])
                     for subtask, error in zip(error_dict.keys(), errors):
                         error_dict[subtask][phase][criteria] = round(float(error), 7)
+
+            # Denormalized val metric for model tracking (lower is better)
+            loss_fn = cfg.training.loss_fn
+            if loss_fn == 'Cosine':
+                val_metric = 1 - error_dict['Overall']['Val']['Cosine']
+            else:
+                val_metric = error_dict['Overall']['Val'][loss_fn]
+
             if scheduler is not None:
-                scheduler.step(val_loss)
+                scheduler.step(val_metric)
 
             # ── TensorBoard ────────────────────────────────────────────────
             writer.add_scalar('Loss/train', loss, epoch)
@@ -124,13 +132,13 @@ def training(cfg: AppConfig, trial: optuna.Trial | None = None) -> float:
 
             info = json.dumps({'Epoch': epoch} | error_dict)
 
-            model_saving.best_model(model, optimizer, epoch, val_loss)
+            model_saving.best_model(model, optimizer, epoch, val_metric)
             model_saving.regular_model(model, optimizer, epoch)
             fp.training_log(epoch, info, model_saving.best_val_loss, model_saving.best_epoch)
             torch.cuda.empty_cache()
 
             if trial is not None:
-                trial.report(val_loss, epoch)
+                trial.report(val_metric, epoch)
                 if trial.should_prune():
                     raise optuna.exceptions.TrialPruned()
 
