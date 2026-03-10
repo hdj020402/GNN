@@ -3,6 +3,7 @@
 Training_Recording/
 Prediction_Recording/
 HPTuning_Recording/
+outputs/          # Hydra run output directory
 log/
 **/processed/
 *.png
@@ -13,6 +14,5 @@ database/
 data_prep/
 model_parameters.yml
 hparam_tuning.yml
-feature_filter.yml
 test_data/
 docs/

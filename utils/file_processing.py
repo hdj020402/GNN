@@ -1,15 +1,46 @@
-import os, json, yaml, shutil, math, logging
+import os
+import json
+import shutil
+import logging
 import torch
 import optuna
 from torch_geometric.loader import DataLoader
-from typing import Dict, List, Tuple, Literal
+from typing import Literal
 from copy import deepcopy
 
-from datasets.graph_dataset import Graph
-from nets.readout_add_graph_feature import GraphPredictionModel, NodePredictionModel
+from omegaconf import OmegaConf
+
+from data.graph_dataset import Graph
 from utils.save_model import SaveModel
-from utils.post_processing import ReadLog
-from utils.utils import Timer
+from utils.timer import Timer
+
+from configs.schema import AppConfig
+
+
+# cfg keys included in run-record files (optuna omitted — saved separately in hparam_tuning.yml)
+_RECORD_KEYS = ['mode', 'seed', 'use_deterministic', 'GPU_memo_frac',
+                'pretrained_model', 'timestamp', 'data', 'training', 'model', 'output']
+
+
+class LogParser:
+    """Reads a training log file to support training resumption."""
+
+    def __init__(self, log_file: str) -> None:
+        self.log_file = log_file
+
+    def restart(self, start_epoch: int) -> list[str]:
+        """Return log lines for epochs before start_epoch (used when resuming)."""
+        with open(self.log_file) as lf:
+            text = lf.readlines()
+        pre_log_text = []
+        i = 1
+        for line in text:
+            if i == start_epoch:
+                break
+            if '"Epoch"' in line:
+                pre_log_text.append(line)
+                i += 1
+        return pre_log_text
 
 def setup_logger(logger_name: str, log_file: str, level=logging.INFO) -> logging.Logger:
     logger = logging.getLogger(logger_name)
@@ -26,18 +57,17 @@ def setup_logger(logger_name: str, log_file: str, level=logging.INFO) -> logging
 class FileProcessing:
     def __init__(
         self,
-        param: Dict,
-        ht_param: Dict | None = None,
+        cfg: AppConfig,
         trial: optuna.Trial | None = None
         ) -> None:
-        self.param = param
-        self.TIME = self.param['time']
-        self.jobtype = self.param['jobtype']
-        self.ht_param = ht_param
+        self.cfg = cfg
+        self._record_cfg = OmegaConf.masked_copy(cfg, _RECORD_KEYS)
+        self.TIME = cfg.timestamp
+        self.jobtype = cfg.output.jobtype
         self.trial = trial
 
     def pre_make(self) -> None:
-        self.subtasks = ['Overall'] + self.param['target_list']
+        self.subtasks = ['Overall'] + list(self.cfg.data.target_list)
         def make_subtask_dir(maintask_dir: str):
             for subtask in self.subtasks:
                 os.makedirs(f'{maintask_dir}/{subtask}')
@@ -48,69 +78,100 @@ class FileProcessing:
             else:
                 self.error_dict[subtask] = {'Train': {}, 'Val': {}, 'Test': {}}
 
-        if self.param['mode'] == 'prediction':
+        # ── Compute base directory ────────────────────────────────────────
+        if self.cfg.mode == 'prediction':
+            self._base_dir = f'Recording/Prediction_Recording/{self.jobtype}/{self.TIME}'
+        elif self.cfg.mode == 'hparam_tuning':
+            self._base_dir = f'Recording/HPTuning_Recording/{self.jobtype}/{self.TIME}'
+        else:
+            self._base_dir = f'Recording/Training_Recording/{self.jobtype}/{self.TIME}'
+
+        if self.cfg.mode == 'prediction':
             self.error_dict = {}
             for subtask in self.subtasks:
                 self.error_dict[subtask] = {'Pred': {}}
-            os.makedirs(f'Prediction_Recording/{self.jobtype}/{self.TIME}')
-            with open(f'Prediction_Recording/{self.jobtype}/{self.TIME}/model_parameters.yml', 'w', encoding = 'utf-8') as mp:
-                yaml.dump(self.param, mp, allow_unicode = True, sort_keys = False)
-            self.plot_dir = f'Prediction_Recording/{self.jobtype}/{self.TIME}/Plot'
+            os.makedirs(self._base_dir)
+            OmegaConf.save(self._record_cfg, f'{self._base_dir}/model_parameters.yml')
+            self.plot_dir = f'{self._base_dir}/Plot'
             os.makedirs(self.plot_dir)
             make_subtask_dir(self.plot_dir)
-            self.data_dir = f'Prediction_Recording/{self.jobtype}/{self.TIME}/Data'
+            self.data_dir = f'{self._base_dir}/Data'
             os.makedirs(self.data_dir)
             make_subtask_dir(self.data_dir)
-            self.model_dir = f'Prediction_Recording/{self.jobtype}/{self.TIME}/Model'
+            self.model_dir = f'{self._base_dir}/Model'
             os.makedirs(self.model_dir)
-            shutil.copy(self.param['pretrained_model'], self.model_dir)
-            self.log_file = f'Prediction_Recording/{self.jobtype}/{self.TIME}/prediction_{self.TIME}.log'
+            shutil.copy(self.cfg.pretrained_model, self.model_dir)
+            self.log_file = f'{self._base_dir}/prediction_{self.TIME}.log'
             self.prediction_logger = setup_logger(f'prediction_{self.TIME}_logger', self.log_file)
 
-        elif self.param['mode'] == 'hparam_tuning':
-            os.makedirs(f'HPTuning_Recording/{self.jobtype}/{self.TIME}', exist_ok=True)
-            self.optuna_log = f'HPTuning_Recording/{self.jobtype}/{self.TIME}/hptuning_{self.TIME}.log'
-            self.optuna_db = f'sqlite:///HPTuning_Recording/{self.jobtype}/{self.TIME}/hptuning_{self.TIME}.db'
+        elif self.cfg.mode == 'hparam_tuning':
+            os.makedirs(self._base_dir, exist_ok=True)
+            self.optuna_log = f'{self._base_dir}/hptuning_{self.TIME}.log'
+            self.optuna_db = f'sqlite:///{self._base_dir}/hptuning_{self.TIME}.db'
             self.hptuning_logger = setup_logger(f'hptuning_{self.TIME}_logger', self.optuna_log)
 
             if self.trial is None:
                 return
 
-            n_trials = self.ht_param['optuna']['n_trials']
+            n_trials = self.cfg.optuna.n_trials
             trial_name = f'Trial_{self.trial.number:0{len(str(n_trials))}d}'
-            os.makedirs(f'HPTuning_Recording/{self.jobtype}/{self.TIME}/{trial_name}')
-            with open(f'HPTuning_Recording/{self.jobtype}/{self.TIME}/{trial_name}/model_parameters.yml', 'w', encoding = 'utf-8') as mp:
-                yaml.dump(self.param, mp, allow_unicode = True, sort_keys = False)
-            if not os.path.exists(f'HPTuning_Recording/{self.jobtype}/{self.TIME}/hparam_tuning.yml'):
-                with open(f'HPTuning_Recording/{self.jobtype}/{self.TIME}/hparam_tuning.yml', 'w', encoding = 'utf-8') as mp:
-                    yaml.dump(self.ht_param, mp, allow_unicode = True, sort_keys = False)
-            self.plot_dir =  f'HPTuning_Recording/{self.jobtype}/{self.TIME}/{trial_name}/Plot'
+            trial_dir = f'{self._base_dir}/{trial_name}'
+            os.makedirs(trial_dir)
+            OmegaConf.save(self._record_cfg, f'{trial_dir}/model_parameters.yml')
+            if not os.path.exists(f'{self._base_dir}/hparam_tuning.yml'):
+                OmegaConf.save(self.cfg.optuna, f'{self._base_dir}/hparam_tuning.yml')
+            self.plot_dir = f'{trial_dir}/Plot'
             os.makedirs(self.plot_dir)
             make_subtask_dir(self.plot_dir)
-            self.model_dir = f'HPTuning_Recording/{self.jobtype}/{self.TIME}/{trial_name}/Model'
+            self.model_dir = f'{trial_dir}/Model'
             os.makedirs(self.model_dir)
-            self.ckpt_dir = f'HPTuning_Recording/{self.jobtype}/{self.TIME}/{trial_name}/Model/checkpoint'
+            self.ckpt_dir = f'{trial_dir}/Model/checkpoint'
             os.makedirs(self.ckpt_dir)
-            self.log_file = f'HPTuning_Recording/{self.jobtype}/{self.TIME}/{trial_name}/training_{trial_name}.log'
+            self.log_file = f'{trial_dir}/training_{trial_name}.log'
             self.training_logger = setup_logger(f'training_{trial_name}_logger', self.log_file)
+            self.tensorboard_dir = f'{trial_dir}/TensorBoard'
 
         else:
-            os.makedirs(f'Training_Recording/{self.jobtype}/{self.TIME}')
-            with open(f'Training_Recording/{self.jobtype}/{self.TIME}/model_parameters.yml', 'w', encoding = 'utf-8') as mp:
-                yaml.dump(self.param, mp, allow_unicode = True, sort_keys = False)
-            self.plot_dir = f'Training_Recording/{self.jobtype}/{self.TIME}/Plot'
+            os.makedirs(self._base_dir)
+            OmegaConf.save(self._record_cfg, f'{self._base_dir}/model_parameters.yml')
+            self.plot_dir = f'{self._base_dir}/Plot'
             os.makedirs(self.plot_dir)
             make_subtask_dir(self.plot_dir)
-            self.model_dir = f'Training_Recording/{self.jobtype}/{self.TIME}/Model'
+            self.model_dir = f'{self._base_dir}/Model'
             os.makedirs(self.model_dir)
-            self.ckpt_dir = f'Training_Recording/{self.jobtype}/{self.TIME}/Model/checkpoint'
+            self.ckpt_dir = f'{self._base_dir}/Model/checkpoint'
             os.makedirs(self.ckpt_dir)
-            if not os.path.isdir(f'Training_Recording/{self.jobtype}/recording'):
-                os.makedirs(f'Training_Recording/{self.jobtype}/recording')
-            self.log_file = f'Training_Recording/{self.jobtype}/{self.TIME}/training_{self.TIME}.log'
+            recording_dir = f'Recording/Training_Recording/{self.jobtype}/recording'
+            if not os.path.isdir(recording_dir):
+                os.makedirs(recording_dir)
+            self.log_file = f'{self._base_dir}/training_{self.TIME}.log'
             self.training_logger = setup_logger(f'training_{self.TIME}_logger', self.log_file)
+            self.tensorboard_dir = f'{self._base_dir}/TensorBoard'
 
         self.gpu_logger = setup_logger(f'gpu_{self.TIME}_logger', f'{os.path.dirname(self.log_file)}/gpu_monitor.log')
+
+    @staticmethod
+    def count_parameters(model: torch.nn.Module) -> tuple[int, int]:
+        """Count total and trainable parameters in a model.
+
+        Returns:
+            (total_params, trainable_params)
+        """
+        total = sum(p.numel() for p in model.parameters())
+        trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        return total, trainable
+
+    @staticmethod
+    def format_parameters(num_params: int) -> str:
+        """Format parameter count as human-readable string (K, M, B)."""
+        if num_params >= 1e9:
+            return f"{num_params / 1e9:.2f}B"
+        elif num_params >= 1e6:
+            return f"{num_params / 1e6:.2f}M"
+        elif num_params >= 1e3:
+            return f"{num_params / 1e3:.2f}K"
+        else:
+            return str(num_params)
 
     def basic_info_log(
         self,
@@ -120,23 +181,29 @@ class FileProcessing:
         test_loader: DataLoader,
         pred_loader: DataLoader,
         norm_dict: dict[str, tuple[torch.Tensor, torch.Tensor]],
-        model: GraphPredictionModel | NodePredictionModel,
+        model: torch.nn.Module,
         timer: Timer
         ) -> None:
         days, hours, minutes, seconds = timer.get_tot_time()
-        if self.param['mode'] == 'prediction':
-            self.prediction_logger.info(f"data_path: {os.path.abspath(self.param['path'])}")
-            self.prediction_logger.info(json.dumps(self.param))
+        total_params, trainable_params = self.count_parameters(model)
+        total_str = self.format_parameters(total_params)
+        trainable_str = self.format_parameters(trainable_params)
+
+        if self.cfg.mode == 'prediction':
+            self.prediction_logger.info(f"data_path: {os.path.abspath(self.cfg.data.path)}")
+            self.prediction_logger.info(json.dumps(OmegaConf.to_container(self._record_cfg, resolve=True)))
             self.prediction_logger.info(f"dataset: {str(dataset.data)}")
             self.prediction_logger.info(f"size of pred set: {len(pred_loader.dataset)}")
             self.prediction_logger.info(f"batch size: {pred_loader.batch_size}")
             self.prediction_logger.info(f"norm info: {norm_dict}")
             self.prediction_logger.info(f"Model:\n{model}")
+            self.prediction_logger.info(f"Total parameters: {total_str} ({total_params:,})")
+            self.prediction_logger.info(f"Trainable parameters: {trainable_str} ({trainable_params:,})")
             self.prediction_logger.info(f"Data processing time: {days} d {hours} h {minutes} m {seconds} s")
             self.prediction_logger.info("Begin predicting...")
         else:
-            self.training_logger.info(f"data_path: {os.path.abspath(self.param['path'])}")
-            self.training_logger.info(json.dumps(self.param))
+            self.training_logger.info(f"data_path: {os.path.abspath(self.cfg.data.path)}")
+            self.training_logger.info(json.dumps(OmegaConf.to_container(self._record_cfg, resolve=True)))
             self.training_logger.info(f"dataset: {str(dataset.data)}")
             self.training_logger.info(f"size of test set: {len(test_loader.dataset)}")
             self.training_logger.info(f"size of val set: {len(val_loader.dataset)}")
@@ -144,12 +211,14 @@ class FileProcessing:
             self.training_logger.info(f"batch size: {train_loader.batch_size}")
             self.training_logger.info(f"norm info: {norm_dict}")
             self.training_logger.info(f"Model:\n{model}")
+            self.training_logger.info(f"Total parameters: {total_str} ({total_params:,})")
+            self.training_logger.info(f"Trainable parameters: {trainable_str} ({trainable_params:,})")
             self.training_logger.info(f"Data processing time: {days} d {hours} h {minutes} m {seconds} s")
             self.training_logger.info("Begin training...")
 
     def load_model(
         self,
-        state_dict: Dict,
+        state_dict: dict,
         model: torch.nn.Module,
         optimizer: torch.optim.Optimizer,
         mode: Literal['training', 'prediction', 'fine-tuning']
@@ -166,23 +235,23 @@ class FileProcessing:
         model_saving: SaveModel | None=None
         ) -> int:
         start_epoch = 1
-        pretrained_model = self.param['pretrained_model']
-        mode = self.param['mode']
+        pretrained_model = self.cfg.pretrained_model
+        mode = self.cfg.mode
         if mode in ['prediction', 'fine-tuning']:
-            state_dict: Dict = torch.load(pretrained_model, map_location=device)
+            state_dict: dict = torch.load(pretrained_model, map_location=device)
             self.load_model(state_dict, model, optimizer, mode)
             start_epoch = 1
         # resume training
         elif mode == 'training':
             if pretrained_model:
-                state_dict: Dict = torch.load(pretrained_model, map_location=device)
+                state_dict: dict = torch.load(pretrained_model, map_location=device)
                 self.load_model(state_dict, model, optimizer, mode)
                 start_epoch = state_dict['epoch'] + 1
                 pre_dir = os.path.dirname(os.path.dirname(os.path.dirname(pretrained_model)))
                 pre_TIME = os.path.basename(pre_dir)
                 pre_log_file = os.path.join(pre_dir, f'training_{pre_TIME}.log')
-                shutil.copy(pre_log_file, f'Training_Recording/{self.jobtype}/{self.TIME}/pre.log')
-                pre_log_info = ReadLog(pre_log_file, self.param)
+                shutil.copy(pre_log_file, f'Recording/Training_Recording/{self.jobtype}/{self.TIME}/pre.log')
+                pre_log_info = LogParser(pre_log_file)
                 pre_log_text = pre_log_info.restart(start_epoch)
                 with open(self.log_file, 'a') as lf:
                     lf.writelines(pre_log_text)
@@ -194,19 +263,19 @@ class FileProcessing:
         self.start_epoch = start_epoch
         return start_epoch
 
-    def pred_log(self, info: Dict) -> None:
+    def pred_log(self, info: dict) -> None:
         self.prediction_logger.info(json.dumps(info))
 
     def training_log(
         self,
         epoch: int,
-        info: Dict,
+        info: dict,
         best_val_loss: float,
         best_epoch: int,
         ) -> None:
         self.best_val_loss = best_val_loss
         self.best_epoch = best_epoch
-        if epoch % self.param['output_step'] == 0:
+        if epoch % self.cfg.training.output_step == 0:
             self.training_logger.info(
                 f'{info} '
                 f'Best is epoch {best_epoch} with value: {best_val_loss}.'
@@ -228,4 +297,3 @@ class FileProcessing:
         self.training_logger.info(f'Total time: {days} d {hours} h {minutes} m {seconds} s')
         days, hours, minutes, seconds = timer.get_average_time(epoch - self.start_epoch + 1)
         self.training_logger.info(f'Time per epoch: {days} d {hours} h {minutes} m {seconds} s')
-

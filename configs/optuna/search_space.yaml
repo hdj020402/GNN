@@ -1,0 +1,31 @@
+# Hyperparameter search space.
+# Each key must match a flat param key (after _build_param merges the config).
+# Supported types: int / float / categorical / loguniform / discrete_uniform
+#
+# Examples:
+#   training.lr:
+#     type: loguniform
+#     low: 0.0001
+#     high: 0.01
+#
+#   training.optimizer:
+#     type: categorical
+#     choices: [Adam, AdamW, SGD]
+#
+#   data.batch_size:
+#     type: discrete_uniform
+#     low: 32
+#     high: 256
+#     q: 32
+#
+# The keys use dot-notation to match the Hydra config structure.
+# They are mapped to flat param keys in hparam_tuning() in main.py.
+
+training.lr:
+  type: loguniform
+  low: 0.0001
+  high: 0.01
+
+training.optimizer:
+  type: categorical
+  choices: [Adam, AdamW, SGD]

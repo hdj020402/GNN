@@ -2,24 +2,27 @@ import torch
 import torch.nn as nn
 from torch_geometric.loader import DataLoader
 
+from configs.schema import AppConfig
+
+
 class Evaluation():
     def __init__(
         self,
-        DataLoader: DataLoader,
+        data_loader: DataLoader,
         model: nn.Module,
-        param: dict,
+        cfg: AppConfig,
         device: torch.device,
         norm_dict: dict[str, tuple[torch.Tensor, torch.Tensor]],
-        transform: str | None = None,
         ) -> None:
-        self.param = param
-        self.DataLoader = DataLoader
+        self.cfg = cfg
+        self.data_loader = data_loader
         self.model = model
         self.device = device
         mean, std = norm_dict['y']
         self.mean = mean.to('cpu')
         self.std = std.to('cpu')
-        self.transform = transform
+        self.use_amp = cfg.training.use_amp
+        self.transform = cfg.data.target_transform
         self.pred, self.target = self._get_pred()
 
     def _get_pred(self) -> tuple[torch.Tensor, torch.Tensor]:
@@ -27,9 +30,10 @@ class Evaluation():
         sum_pred = []
         sum_target = []
         with torch.no_grad():
-            for data in self.DataLoader:
+            for data in self.data_loader:
                 data = data.to(self.device)
-                output = self.model(data)
+                with torch.autocast(device_type=self.device.type, dtype=torch.bfloat16, enabled=self.use_amp):
+                    output = self.model(data)
                 y = data.y
 
                 output = output.cpu()
@@ -43,7 +47,7 @@ class Evaluation():
         sum_pred = torch.cat(sum_pred)
         sum_target = torch.cat(sum_target)
 
-        if not self.param['target_type'] == 'vector':
+        if self.cfg.data.target_type != 'vector':
             sum_pred = sum_pred * self.std + self.mean
             sum_pred = self.target_inverse_transform(sum_pred)
             sum_target = sum_target * self.std + self.mean
@@ -51,12 +55,14 @@ class Evaluation():
 
         return sum_pred, sum_target
 
-    def target_inverse_transform(self, data: torch.tensor):
+    def target_inverse_transform(self, data: torch.Tensor) -> torch.Tensor:
         if self.transform == 'LN':
-            return torch.e ** data
+            return torch.exp(data)
         elif self.transform == 'LG':
             return 10 ** data
         elif self.transform == 'E^-x':
             return -torch.log(data)
         elif not self.transform:
             return data
+        else:
+            raise ValueError(f"Unknown target_transform: '{self.transform}'")

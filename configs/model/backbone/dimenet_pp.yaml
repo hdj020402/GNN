@@ -1,0 +1,5 @@
+# Note: selected via "model/backbone=dimenet_pp" on the command line.
+# The factory key is "dimenet++" (set by the name field below).
+name: "dimenet++"
+hidden_channels: 128
+num_blocks: 4

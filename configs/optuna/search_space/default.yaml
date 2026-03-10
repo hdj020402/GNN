@@ -1,0 +1,38 @@
+# Default search space: empty (no parameters are tuned by default).
+# Override by selecting a different config group or creating your own:
+#
+#   configs/optuna/search_space/my_exp.yaml
+#   python main.py mode=hparam_tuning optuna/search_space=my_exp
+#
+# Supported types and their YAML format:
+#
+#   int:
+#     type: int
+#     low: 16
+#     high: 256
+#
+#   float:
+#     type: float
+#     low: 0.1
+#     high: 1.0
+#
+#   loguniform float:
+#     type: loguniform
+#     low: 1e-4
+#     high: 1e-2
+#
+#   discrete (stepped) float:
+#     type: discrete_uniform
+#     low: 32.0
+#     high: 256.0
+#     q: 32.0        # step size
+#
+#   categorical:
+#     type: categorical
+#     choices: [Adam, AdamW, SGD]
+#
+# Keys use Hydra dot-notation to match the cfg structure (e.g. training.lr, data.batch_size).
+# Common tunable keys: training.lr, training.optimizer, data.batch_size, training.epoch_num,
+#   training.accumulation_step, model.backbone.mp_times (MPNN),
+#   model.backbone.node_dim (GCN/GAT/GIN/Transformer),
+#   model.backbone.hidden_channels (SchNet/DimeNet++)

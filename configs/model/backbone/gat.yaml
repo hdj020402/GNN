@@ -1,0 +1,5 @@
+name: gat
+node_dim: 64
+num_layers: 3
+heads: 4
+use_layer_norm: true

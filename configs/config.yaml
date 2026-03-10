@@ -1,0 +1,31 @@
+defaults:
+  - data: default
+  - model/backbone: mpnn
+  - model/head: graph
+  - training: default
+  - output: default
+  - optuna: default          # Optuna study settings (sampler, pruner, n_trials …)
+  - optuna/search_space: default  # Hyperparameter search space (empty by default)
+  - _self_
+
+# Operational mode
+mode: training  # training / hparam_tuning / prediction / fine-tuning
+
+# Global settings
+seed: 42
+use_deterministic: true   # false → allow non-deterministic CUDA kernels for speed
+GPU_memo_frac: 1
+pretrained_model: null   # Path to a .pth checkpoint; required for prediction / fine-tuning
+timestamp: ""            # Populated at runtime in main() via OmegaConf.update()
+
+# Prevent Hydra from changing the working directory (already the default in 1.3)
+hydra:
+  run:
+    dir: .
+  output_subdir: null
+  job:
+    chdir: false
+  job_logging:
+    handlers:
+      file:
+        filename: /dev/null

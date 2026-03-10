@@ -1,298 +1,125 @@
 # GNN
 
-## Introduction
+A PyTorch-based Graph Neural Network toolkit for molecular property prediction. Supports multiple GNN architectures, graph/node/edge-level prediction, hyperparameter tuning, and fine-tuning.
 
-This repo contains codes for generating datasets and training GNN models.
+## Quick Start
 
-## Instruction
+### 1. Clone
 
-### Step 1. Clone this repo
-
-```shell
+```bash
 git clone git@github.com:hdj020402/GNN.git
+cd gnn
 ```
 
-### Step 2. Create conda environment
+### 2. Install
 
-```shell
-conda create -n <newenv> python=3.12
+```bash
+conda create -n gnn python=3.12
+conda activate gnn
+
+# GPU
+pip install -r envs/requirements-gpu.txt
+
+# CPU
+pip install -r envs/requirements-cpu.txt
 ```
 
-- If you are going to run the GNN code on a device with GPU, you can run the following command.
+> **Note:** PyTorch and PyG extension packages (`torch-cluster`) may require special index URLs. See comments in the requirements files for details.
 
-    ```shell
-    cd gnn
-    pip install -r envs/requirements-gpu.txt
-    ```
+### 3. Configure
 
-- If you don't have a GPU, run the following command.
+Configuration is managed via [Hydra](https://hydra.cc/) with YAML config groups under `configs/`. Key config files:
 
-    ```shell
-    cd gnn
-    pip install -r envs/requirements-cpu.txt
-    ```
+| Config Group | File | Description |
+|---|---|---|
+| Root | `configs/config.yaml` | Mode, seed, GPU settings |
+| Data | `configs/data/default.yaml` | Dataset paths, features, split method |
+| Backbone | `configs/model/backbone/<name>.yaml` | GNN backbone (mpnn, gcn, gat, gin, etc.) |
+| Head | `configs/model/head/<name>.yaml` | Prediction head (graph, node) |
+| Training | `configs/training/default.yaml` | Loss, optimizer, scheduler, epochs |
+| Output | `configs/output/default.yaml` | Job type naming |
+| Optuna | `configs/optuna/default.yaml` | Hyperparameter tuning settings |
 
-- **Notice:** the creation of environment may fail due to network instability, especially when installing pytorch or pytorch-related packages. If the creation is disrupted, install the packages seperately.
+Override any parameter on the command line:
 
-### Step 3. Set parameters
-
-1. Create a new file called `model_parameters.yml` in the same folder as `main.py`.
-2. `model_parameters_example.yml` gives an example of the parameter file. Copy **all the terms** in the example file to `model_parameters.yml` created previously.
-3. Modify the parameters to meet your demand. Each parameter is explained as follows:
-    - General
-        - `jobtype`: the type of your job, can be any words
-        - `mode`: corresponding to different functions; choose among `training`, `hparam_tuning`, `feature_filtration`, `prediction` and `fine-tuning`
-            - `training`: train a model with given parameters
-            - `hparam_tuning`: train multiple models with different combinations of hyper-parameters in order to choose the best one according to models' performance; to use this function, file `hparam_tuning.yml` is a must, and the content of this file will be explained in detail in [point 4](#hparam_tuning)
-            - `feature_filtration`: train multiple models with different combinations of features in order to choose the best one according to models' performance
-            - `prediction`: predict the target in a new dataset with a pre-trained model
-            - `fine-tuning`: perform training with a pre-trained model on a different dataset
-        - `feature_filter_mode`: method of screening the best combination of features; choose among `one_by_one`, `file` and `null`
-            - `one_by_one`: `node_attr_list`, `edge_attr_list` and `graph_attr_list` will be merged into a new list, and each time, one feature will be removed from the new list to form a new feature combination
-            - `file`: not implemented; you can record multiple combination of features you want to test in `feature_filter.yml`, and train the models one by one; to use this function, file `feature_filter.yml` is a must, and the content of this file will be explained in detail in [point 5](#feature_filtration)
-            - `null`: no screening task
-        - `seed`: integer, to generate reproducible random splitted datasets and prediction results
-        - `GPU_memo_frac`: decimal, the proportion of GPU memory (or CUDA memory) that can be allocated and used by a single process
-    - Dataset (relative paths are recommended)
-        - `path`: the path of a directory to store processed data
-
-            ```plain text
-            <path>/
-            └── processed/
-                ├── graph_data.pt
-                ├── model_parameters.yml
-                ├── pre_filter.pt
-                └── pre_transform.pt
-            ```
-
-        - `sdf_file`: the path of a `.sdf` file, which sequentially records the coordinates and bonding information of structures
-        - `node_attr_file`: the path of a `.json` file or a `.pkl` file, which sequentially records the node information of structures; can be `null`
-            - e.g.
-
-                ```json
-                {
-                    "charge": [[-0.2, 0.05, -0.19], [0.33, -0.81, 0.24]],
-                    "dispersion": [[-1.77, -2.16, -2.09], [-1.76, -3.11, -2.98]]
-                }
-                ```
-
-            - Each value corresponds to an atomic node, which means they should be recorded in the same order as the atoms  in the `.sdf` file.
-        - `edge_attr_file`: the path of a `.json` file or a `.pkl` file, which sequentially records the edge information of structures (similar to `node_attr_file`); can be `null`
-            - e.g.
-                ```json
-                {
-                    "order": [[1, 1, 2, 2, 1, 1], [3, 3, 1, 1, 1, 1, 2, 2]],
-                    "energy": [[-2.3, -2.3, 2.2, 2.2, 1.0, 1.0], [-3.56, -3.56, -1.42, -1.42, -2.67, -2.67]]
-                }
-                ```
-            - Each value corresponds to an edge, which means they should be recorded in the same order as the bonds appear in the result of `mol.GetBonds()`; to generate an undirected graph, each edge must be listed twice in succession but in opposite directions, so the edge attributes should also be included twice
-        - `graph_attr_file`: the path of a `.csv` file, which sequentially records the molecular features and the targets of structures; molecular features are not necessary, while targets are must-have contents
-            - e.g.
-
-                |feature 1|feature 2|...|feature n|target|
-                |-|-|-|-|-|
-                |0.1|0.2|...|0.4|1|
-                |0.2|0.4|...|0.8|2|
-                |...|...|...|...|...|
-                |1|2|...|4|10|
-
-        - `atom_type`: list, to identify all unique element types present in the structures
-        - `default_node_attr`: dict[str, bool], you can choose whether to include each default node attribute
-            - `ele_type`: one hot, determine the type of element
-            - `atomic_number`: the atomic number of an atom
-            - `aromatic`: whether the atom is aromatic or not
-            - `num_neighbors`: number of connected atoms
-            - `num_hs`: number of connected Hs
-        - `default_edge_attr`: dict, you can choose whether to include each default edge attribute
-            - `edge_type`: one hot, determine the bond order
-            - `bond_length`: dict
-                - `power`: list, the format of the elements in the list must be `r^n`, where n is a float; e.g. `[r^1, r^-2, r^-0.33]`
-                - `threshold`: float, if the distance between two nodes is greater than the threshold, the bond length will be infinite; can be `null`, which means there is no threshold
-        - `node_attr_list`: list, to select the node features you need; can be `null` or `[]`
-        - `edge_attr_list`: list, to select the edge features you need; can be `null` or `[]`
-        - `graph_attr_list`: list, to select the molecular features you need; can be `null` or `[]`
-        - `node_attr_filter`: not implemented
-        - `edge_attr_filter`: not implemented
-        - `pos`: not implemented
-        - `target_type`: choose among `graph`, `node` and `edge`
-        - `target_list`: list, to determine the target
-        - `target_transform`: apply mathematical transformation to target; usually used when the distribution of data is uneven; choose among `LN`, `LG`, `E^-x` and `null`
-            - `LN`: $y' = \ln{y}$
-            - `LG`: $y' = \log{y}$
-            - `E^-x`: $y' = e^{-y}$
-        - `batch_size`: integer
-        - `num_workers`: integer
-        - `split_method`: choose between `random` and `manual`
-        - `split_file`: the path of a `.npy` file, which uses `np.array` to record the index of data in the order of training dataset, validation dataset and test dataset; if you choose `manual` in `split_method`, you will have to offer a valid path here
-        - `train_size`: decimal, the proportion of training dataset; if you choose `random` in `split_method`, you will have to offer a valid proportion here
-        - `val_size`: decimal, the proportion of validation dataset; if you choose `random` in `split_method`, you will have to offer a valid proportion here
-    - Model
-        - `pretrained_model`: the path of a `.pth` file; in `training` mode, if the path is valid, then training will continue on the basis of this model; in `prediction` or `fine-tuning` mode, pre-trained model is a must
-        - `dim_linear`: integer, the dimension of nn hidden layers
-        - `dim_conv`: integer, the dimension of conv
-        - `processing_steps`: integer, number of processing steps in Set2Set
-        - `mp_times`: integer, number of times for message passing
-        - `loss_fn`: choose among `MAE` and `MSE`
-        - `optimizer`: choose among `Adam`, `AdamW` and `SGD`; the string must be exactly the same as the attribute of `torch.optim`
-        - `lr`: learning rate
-        - `schduler`:
-            - `type`: `ReduceLROnPlateau`, `null`, etc.
-            - `factor`: decimal
-            - `patience`: integer
-            - `min_lr`: decimal
-    - Training
-        - `accumulation_step`: integer, the number of steps between gradient accumulation
-        - `epoch_num`: integer
-        - `output_step`: integer, the number of steps between printing output information
-        - `model_save_step`: integer, the number of steps between generating checkpoints
-        - `early_stopping`: decide whether to stop training earlier than determined `epoch_num` according to the value of `val_loss`
-            - `patience`: integer
-            - `delta`: float
-        - `criteria_list`: list; criteria of estimating the model; you can choose one or more criteria mentioned below, but `[]` or `null` is not allowed
-            - `MAE`: Mean Absolute Error
-            $$MAE = \frac{1}{n} \sum_{i=1}^{n} |y_i - \hat{y}_i|$$
-            - `MSE`: Mean Squared Error
-            $$MSE = \frac{1}{n} \sum_{i=1}^{n} (y_i - \hat{y}_i)^2$$
-            - `RMSD`: Root Mean Squared Deviation
-            $$RMSD = \sqrt{\frac{1}{n} \sum_{i=1}^{n} (y_i - \hat{y}_i)^2}$$
-            - `R2`: Coefficient of Determination
-            $$R^2 = 1 - \frac{\sum_{i=1}^{n} (y_i - \hat{y}_i)^2}{\sum_{i=1}^{n} (y_i - \bar{y})^2}$$
-            - `AARD`: Average Absolute Relative Deviation
-            $$AARD(\%) = \frac{100}{n} \sum_{i=1}^{n} \left|\frac{y_i - \hat{y}_i}{y_i}\right|$$
-    - Prediction
-        - `dataset_range`: choose among `train`, `val`, `test` and `whole`
-            - `train`, `val` and `test`: in case you want to predict a specific part of the whole dataset, you can select one of the three options; the sub-datasets will be generated according to the `split_method` as mentioned before
-            - `whole`: use the whole dataset for prediction
-<a id="hparam_tuning"></a>
-
-4. `hparam_tuning_example.yml` gives an example of the hparam_tuning file. You can alse modify the parameters to meet your demand. Each parameter is explained as follows:
-    - General
-        - `optuna`: hparam tuning is realized using `optuna`
-            - `sampler`: algorithm used for hparam tuning; users can look up the source code for the most suitable one
-                - `type`: name of the algorithm; the string must be exactly the same as the attribute of `optuna.samplers`
-                - `kwargs`: users can modify whichever parameter in the function by providing `keyword: argument`
-            - `pruner`: algorithm used for terminating trials with bad performance; users can look up the source code for the most suitable one
-                - `type`: name of the algorithm; the string must be exactly the same as the attribute of `optuna.pruners`
-                - `kwargs`: users can modify whichever parameter in the function by providing `keyword: argument`
-            - `direction`: choose between `minimize` and `maximize`
-            - `n_trials`: integer
-            - `continue_trials`:
-                `continue`: boolean, to decide whether to continue a hparam-tuning task
-                `storage`: the path of a `.db` file; the path must be in the format of `sqlite:///{$regular_path}`
-                `study_name`: `hptuning_{$jobtype}`; if `null`, the first study in the `storage` will be chosen
-    - hyperparameters
-        - `hparam`: must be one of the keys in `model_parameters.yml`
-            - `type`: choose among `int`, `float`, `uniform`, `discrete_uniform`, `loguniform` and `categorical`
-            - `kwargs`: users can modify whichever parameter in the function by providing `keyword: argument`
-<a id="feature_filtration"></a>
-
-5. `feature_filtration_example.yml` gives an example of the feature_filtration file.
-
-### Step 4. Run your model
-
-Make sure you are in the `gnn/` folder and run one of the following commands based on your mode selection.
-
-**For Training**
-
-```shell
-nohup python main.py > Training_Recording/recording.log 2>&1 &
+```bash
+python main.py mode=training training.lr=0.0005 model/backbone=gat training.epoch_num=500
 ```
 
-With this command, you can train the model in the background. The folder `Training_Recording/` will be generated automatically and you can check the `.log` file for error messages.
+### 4. Run
 
-**For Hyperparameter Tuning**
+All modes use the same entry point:
 
-```shell
-nohup python main.py > HPTuning_Recording/recording.log 2>&1 &
+```bash
+python main.py               # default: training mode
+python main.py mode=hparam_tuning
+python main.py mode=prediction pretrained_model=path/to/model.pth
+python main.py mode=fine-tuning pretrained_model=path/to/model.pth
 ```
 
-With this command, you can perform hyperparameter tuning in the background. The folder `HPTuning_Recording/` will be generated automatically and you can check the `.log` file for error messages and trial results.
+Background execution:
 
-**For Prediction**
-
-```shell
-nohup python main.py > Prediction_Recording/recording.log 2>&1 &
+```bash
+nohup python main.py > recording.log 2>&1 &
 ```
 
-With this command, you can perform prediction using a pre-trained model in the background. The folder `Prediction_Recording/` will be generated automatically and you can check the `.log` file for error messages and prediction results.
+### 5. Results
 
-### Step 5. Post-processing
+All outputs are organized under `Recording/`:
 
-The results will be output to different folders according to the mode you selected. The structure of output folders is as follows.
-
-```plain text
-gnn/
-├── HPTuning_Recording/
-|   └── <jobtype>/
-|       └── <TIME>/
-|           ├── Trial_000/
-|           |   ├── Model/
-|           |   |   ├── checkpoint/
-|           |   |   |   ├── ckpt_<TIME>_050.pth
-|           |   |   |   ├── ckpt_<TIME>_100.pth
-|           |   |   |   └── ...
-|           |   |   └── best_model_<loss_fn>_<TIME>.pth
-|           |   ├── Plot/
-|           |   |   ├── best_model_<loss_fn>_<TIME>_test.png
-|           |   |   ├── best_model_<loss_fn>_<TIME>_train_test.png
-|           |   |   ├── best_model_<loss_fn>_<TIME>_train.png
-|           |   |   └── ...
-|           |   ├── gpu_monitor.log
-|           |   ├── model_parameters.yml
-|           |   └── training_<TIME>.log
-|           ├── Trial_001/
-|           ├── hparam_tuning.yml
-|           ├── hptuning_<TIME>.db
-|           └── hptuning_<TIME>.log
-├── Prediction_Recording/
-|   └── <jobtype>/
-|       └── <TIME>/
-|           ├── Data/
-|           |   ├── Overall/
-|           |   |   ├── pred.pt
-|           |   |   └── target.pt
-|           |   ├── <target1>/
-|           |   |   ├── pred.pt
-|           |   |   └── target.pt
-|           |   └── ...
-|           ├── Model/
-|           |   └── best_model_<loss_fn>_<TIME>.pth
-|           ├── Plot/
-|           |   ├── Overall/
-|           |   └── <target1>/
-|           |       └── <dataset_range>.png
-|           ├── gpu_monitor.log
-|           ├── model_parameters.yml
-|           └── prediction_<TIME>.log
-├── Training_Recording/
-|   └── <jobtype>/
-|       └── <TIME>/
-|           ├── Model/
-|           |   ├── checkpoint/
-|           |   |   ├── ckpt_<TIME>_050.pth
-|           |   |   ├── ckpt_<TIME>_100.pth
-|           |   |   └── ...
-|           |   └── best_model_<loss_fn>_<TIME>.pth
-|           ├── Plot/
-|           |   ├── best_model_<loss_fn>_<TIME>_test.png
-|           |   ├── best_model_<loss_fn>_<TIME>_train_test.png
-|           |   ├── best_model_<loss_fn>_<TIME>_train.png
-|           |   └── ...
-|           ├── gpu_monitor.log
-|           ├── model_parameters.yml
-|           └── training_<TIME>.log
-└── ...
+```
+Recording/
+├── Training_Recording/<jobtype>/<TIME>/
+│   ├── Model/
+│   │   ├── checkpoint/           # Periodic checkpoints
+│   │   └── best_model_*.pth      # Best model by val metric
+│   ├── Plot/                     # Scatter plots & training curves
+│   ├── TensorBoard/              # TensorBoard logs
+│   ├── training_*.log            # Training log
+│   └── config.yaml               # Config snapshot
+├── HPTuning_Recording/<jobtype>/<TIME>/
+│   ├── Trial_000/ ... Trial_N/   # Per-trial results
+│   ├── hptuning_*.db             # Optuna study database
+│   └── hptuning_*.log
+└── Prediction_Recording/<jobtype>/<TIME>/
+    ├── Data/                     # Predictions & targets (.pt)
+    ├── Plot/                     # Scatter plots
+    └── prediction_*.log
 ```
 
-Results of the same type of job will be classified to a folder called `<jobtype>/`. Then, different tasks will have a unique folder named after a specific time in order to distinguish among one another.
+## Supported Models
 
-For **Training** tasks, checkpoints are stored in `Model/checkpoint/` according to the `model_save_step` set in `model_parameters.yml`, while the best model based on loss function is stored in `Model/` directly.
+### Backbones
 
-The scatter plots of the best model predicting the data of different datasets and the `<data>-epoch` plots are stored in `Plot/`, which can offer you an intuitive understanding of the results.
+| Backbone | Type | Key Features |
+|---|---|---|
+| MPNN | Message-passing | NNConv + GRU, edge features |
+| GCN | Message-passing | Standard graph convolution |
+| GAT | Attention | Multi-head attention |
+| GIN | Message-passing | Maximally expressive for WL test |
+| Transformer | Attention | Multi-head + edge features |
+| GPS | Hybrid | Local MPNN + global attention |
+| SchNet | Equivariant | Continuous filters, radial basis |
+| PaiNN | Equivariant | Scalar + vector features |
+| DimeNet++ | Equivariant | Directional message passing |
+| MACE | Equivariant | Multi-body interactions, ACE basis |
 
-File `training_<TIME>.log` records the parameters and the basic information of datasets. Besides, it records the training information of specific epochs according to the `output_step` set in `model_parameters.yml`. This information is used to generate the `<data>-epoch` plots. At the end of the file, the information of the best epoch based on two criteria are extracted from previous content.
+### Prediction Heads
 
-For **Hyperparameter Tuning** tasks, each trial will have its own folder with the structure similar to training tasks. The best model among all trials will be saved in the respective trial folder. You can compare the performance of different hyperparameter combinations through the log files.
+| Head | Target Type | Readout Options |
+|---|---|---|
+| Graph | graph, vector | Set2Set, mean, max, sum |
+| Node | node | Per-node MLP |
 
-For **Prediction** tasks, the predicted results and true values are saved in `Data/` folder. Scatter plots comparing predictions and true values are stored in `Plot/` folder. The pre-trained model used for prediction is also copied to the `Model/` folder.
+## Input Data Format
 
+- **SDF file** (required): Molecular 3D structures
+- **Graph attribute CSV** (required): Targets and graph-level features
+- **Node/Edge attribute JSON or PKL** (optional): Custom per-atom/per-bond features
+- **Vector target file** (optional): For vector-type targets
+
+See `configs/data/default.yaml` for all data options and `docs/tutorial.md` for detailed format specifications.
+
+## Documentation
+
+See [`docs/tutorial.md`](docs/tutorial.md) for a comprehensive guide covering data formats, model architecture, configuration details, and training workflow.

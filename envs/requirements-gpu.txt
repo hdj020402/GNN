@@ -1,9 +1,27 @@
-matplotlib==3.10.1
-numpy==2.2.4
-optuna==4.2.1
-pandas==2.2.3
-PyYAML==6.0.2
-rdkit==2024.9.5
-seaborn==0.13.2
+# ─── Core ────────────────────────────────────────────────────────────────────
 torch==2.6.0
 torch_geometric==2.6.1
+# Install torch-cluster matching your CUDA version:
+#   pip install torch-cluster -f https://data.pyg.org/whl/torch-2.6.0+cu124.html
+torch-cluster==1.6.3
+
+# ─── Configuration & Logging ─────────────────────────────────────────────────
+hydra-core==1.3.2
+tensorboard==2.20.0
+
+# ─── Data Processing ─────────────────────────────────────────────────────────
+numpy==2.4.1
+pandas==2.2.3
+rdkit==2025.9.3
+PyYAML==6.0.2
+
+# ─── Optimization ────────────────────────────────────────────────────────────
+optuna==4.2.1
+
+# ─── Visualization ───────────────────────────────────────────────────────────
+matplotlib==3.10.1
+seaborn==0.13.2
+
+# ─── Equivariant Models (MACE backbone) ──────────────────────────────────────
+e3nn==0.6.0
+mace-torch==0.3.15
