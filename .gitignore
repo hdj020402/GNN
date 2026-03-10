@@ -16,3 +16,4 @@ model_parameters.yml
 hparam_tuning.yml
 test_data/
 docs/
+.claude/
