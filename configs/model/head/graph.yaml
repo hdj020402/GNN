@@ -1,4 +1,4 @@
 name: graph
 readout: set2set
 processing_steps: 3
-use_layer_norm: false
+use_layer_norm: true
