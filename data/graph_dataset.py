@@ -59,6 +59,7 @@ class Graph(InMemoryDataset):
                  node_attr_list: list[str]=[],
                  edge_attr_list: list[str]=[],
                  graph_attr_list: list[str]=[],
+                 sum_target_list: list[str]=[],
                  target_type: Literal['graph', 'node', 'edge']='graph',
                  target_list: list[str]=[],
                  pos: bool=True,
@@ -101,6 +102,7 @@ class Graph(InMemoryDataset):
         self.node_attr_list = node_attr_list
         self.edge_attr_list = edge_attr_list
         self.graph_attr_list = graph_attr_list
+        self.sum_target_list = sum_target_list
         self.target_type = target_type
         self.target_list = target_list
         self.pos = pos
@@ -210,6 +212,14 @@ class Graph(InMemoryDataset):
         else:
             graph_attr = torch.empty(len(target), 0)
 
+        if self.sum_target_list and database is not None:
+            sum_target_all = torch.tensor(
+                np.array(database.loc[:, self.sum_target_list]),
+                dtype=torch.float
+                ).reshape(-1, len(self.sum_target_list))
+        else:
+            sum_target_all = None
+
         if self.weight_file is None:
             if self.target_type in ['graph', 'vector']:
                 weights = torch.ones([len(suppl), len(self.target_list)])
@@ -284,6 +294,8 @@ class Graph(InMemoryDataset):
             data = Data(x=x, z=z, pos=pos, edge_index=edge_index,
                         edge_attr=edge_attr, y=y, graph_attr=g_a, weight=weight,
                         name=name, idx=i)
+            if sum_target_all is not None:
+                data.sum_target = sum_target_all[i:i+1]
 
             # Dispatch based on graph_type
             if self.graph_type == 'bond':

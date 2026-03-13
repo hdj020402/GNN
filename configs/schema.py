@@ -86,6 +86,7 @@ class DataConfig:
     node_attr_list: list[str] = field(default_factory=list)
     edge_attr_list: list[str] = field(default_factory=list)
     graph_attr_list: list[str] = field(default_factory=list)
+    sum_target_list: list[str] = field(default_factory=list)
     pos: bool = True
     sanitize: bool = True
     graph_type: str = "bond"

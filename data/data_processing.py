@@ -17,6 +17,7 @@ _REPROCESS_KEYS = [
     'sdf_file', 'node_attr_file', 'edge_attr_file', 'graph_attr_file',
     'weight_file', 'atom_type', 'default_node_attr', 'default_edge_attr',
     'node_attr_list', 'edge_attr_list', 'graph_attr_list',
+    'sum_target_list',
     'pos', 'graph_type', 'sanitize',
     'target_list', 'target_transform',
 ]
@@ -63,6 +64,7 @@ class DataProcessing():
             node_attr_list=list(d.node_attr_list),
             edge_attr_list=list(d.edge_attr_list),
             graph_attr_list=list(d.graph_attr_list),
+            sum_target_list=list(d.sum_target_list),
             target_type=d.target_type,
             target_list=list(d.target_list),
             pos=d.pos,

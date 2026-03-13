@@ -65,6 +65,10 @@ def training(cfg: AppConfig, trial: optuna.Trial | None = None) -> float:
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = gen_model(cfg, dataset, device)
+    # Set normalization parameters for sum conservation constraint (if enabled)
+    if hasattr(model.head, 'sum_conservation') and model.head.sum_conservation is not None:
+        mean, std = norm_dict['y']
+        model.head.sum_conservation.set_norm_params(mean, std)
     optimizer = gen_optimizer(cfg, model)
     scheduler = gen_scheduler(cfg, optimizer)
 
@@ -194,6 +198,12 @@ def prediction(cfg: AppConfig) -> None:
     model = gen_model(cfg, dataset, device)
     optimizer = gen_optimizer(cfg, model)
     fp.pre_train(model, optimizer, device)
+    # Set normalization parameters for sum conservation constraint (if enabled).
+    # For checkpoints trained with the constraint, buffers are loaded automatically;
+    # this ensures they are correct when using a fresh norm_dict.
+    if hasattr(model.head, 'sum_conservation') and model.head.sum_conservation is not None:
+        mean, std = norm_dict['y']
+        model.head.sum_conservation.set_norm_params(mean, std)
 
     len_target = len(cfg.data.target_list)
     fp.basic_info_log(
