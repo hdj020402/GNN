@@ -212,13 +212,14 @@ def prediction(cfg: AppConfig) -> None:
         )
 
     criteria_list = list(cfg.training.criteria_list)
+    phase_criteria = {'Cosine'} if cfg.data.target_type == 'vector' else set(criteria_list)
 
     evaluation = Evaluation(loader, model, cfg, device, norm_dict)
     pred, target = evaluation.pred, evaluation.target
     gpu_monitor.stop()
 
     err = Metrics(pred, target)
-    for criteria in criteria_list:
+    for criteria in phase_criteria:
         errors = torch.cat([
             getattr(err, criteria)(dim=None).unsqueeze(0),
             getattr(err, criteria)(dim=0).view(-1)
@@ -232,8 +233,8 @@ def prediction(cfg: AppConfig) -> None:
             torch.save(pred, f'{data_dir}/{subtask}/pred.pt')
             torch.save(target, f'{data_dir}/{subtask}/target.pt')
         else:
-            torch.save(pred[:, 0, idx], f'{data_dir}/{subtask}/pred.pt')
-            torch.save(target[:, 0, idx], f'{data_dir}/{subtask}/target.pt')
+            torch.save(pred[:, idx], f'{data_dir}/{subtask}/pred.pt')
+            torch.save(target[:, idx], f'{data_dir}/{subtask}/target.pt')
 
     for t, p, task in zip(torch.split(target, 1, dim=-1), torch.split(pred, 1, dim=-1), cfg.data.target_list):
         scatter(
