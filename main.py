@@ -221,7 +221,7 @@ def prediction(cfg: AppConfig) -> None:
     for criteria in criteria_list:
         errors = torch.cat([
             getattr(err, criteria)(dim=None).unsqueeze(0),
-            getattr(err, criteria)(dim=0)
+            getattr(err, criteria)(dim=0).view(-1)
             ])
         for subtask, error in zip(error_dict.keys(), errors):
             error_dict[subtask]['Pred'][criteria] = round(float(error), 7)
