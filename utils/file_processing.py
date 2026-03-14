@@ -2,6 +2,7 @@ import os
 import json
 import shutil
 import logging
+import socket
 import torch
 import optuna
 from torch_geometric.loader import DataLoader
@@ -190,6 +191,7 @@ class FileProcessing:
         trainable_str = self.format_parameters(trainable_params)
 
         if self.cfg.mode == 'prediction':
+            self.prediction_logger.info(f"hostname: {socket.gethostname()}")
             self.prediction_logger.info(f"data_path: {os.path.abspath(self.cfg.data.path)}")
             self.prediction_logger.info(json.dumps(OmegaConf.to_container(self._record_cfg, resolve=True)))
             self.prediction_logger.info(f"dataset: {str(dataset.data)}")
@@ -202,6 +204,7 @@ class FileProcessing:
             self.prediction_logger.info(f"Data processing time: {days} d {hours} h {minutes} m {seconds} s")
             self.prediction_logger.info("Begin predicting...")
         else:
+            self.training_logger.info(f"hostname: {socket.gethostname()}")
             self.training_logger.info(f"data_path: {os.path.abspath(self.cfg.data.path)}")
             self.training_logger.info(json.dumps(OmegaConf.to_container(self._record_cfg, resolve=True)))
             self.training_logger.info(f"dataset: {str(dataset.data)}")
