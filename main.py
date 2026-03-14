@@ -182,7 +182,7 @@ def prediction(param: dict) -> None:
     for criteria in criteria_list:
         errors = torch.cat([
             getattr(calc_error(pred, target), criteria)(dim=None).unsqueeze(0),
-            getattr(calc_error(pred, target), criteria)(dim=0)
+            getattr(calc_error(pred, target), criteria)(dim=0).view(-1)
             ])
         for subtask, error in zip(error_dict.keys(), errors):
             error_dict[subtask]['Pred'][criteria] = round(float(error), 7)
@@ -193,8 +193,12 @@ def prediction(param: dict) -> None:
             torch.save(pred, f'{data_dir}/{subtask}/pred.pt')
             torch.save(target, f'{data_dir}/{subtask}/target.pt')
         else:
-            torch.save(pred[:, 0, idx], f'{data_dir}/{subtask}/pred.pt')
-            torch.save(target[:, 0, idx], f'{data_dir}/{subtask}/target.pt')
+            if pred.dim() == 3:
+                torch.save(pred[:, 0, idx], f'{data_dir}/{subtask}/pred.pt')
+                torch.save(target[:, 0, idx], f'{data_dir}/{subtask}/target.pt')
+            else:
+                torch.save(pred[:, idx], f'{data_dir}/{subtask}/pred.pt')
+                torch.save(target[:, idx], f'{data_dir}/{subtask}/target.pt')
 
     for t, p, task in zip(torch.split(target, 1, dim=-1), torch.split(pred, 1, dim=-1), param['target_list']):
         scatter(
