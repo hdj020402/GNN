@@ -125,13 +125,14 @@ def training(cfg: AppConfig, trial: optuna.Trial | None = None) -> float:
             writer.add_scalar('Loss/train', loss, epoch)
             writer.add_scalar('Loss/val', val_loss, epoch)
             writer.add_scalar('LR', lr, epoch)
-            for criteria in phase_criteria:
-                for phase in ['Train', 'Val', 'Test']:
-                    writer.add_scalar(
-                        f'{criteria}/{phase}',
-                        error_dict['Overall'][phase][criteria],
-                        epoch,
-                    )
+            for subtask in error_dict:
+                for criteria in phase_criteria:
+                    for phase in ['Train', 'Val', 'Test']:
+                        writer.add_scalar(
+                            f'{subtask}/{criteria}/{phase}',
+                            error_dict[subtask][phase][criteria],
+                            epoch,
+                        )
             # ───────────────────────────────────────────────────────────────
 
             info = json.dumps({'Epoch': epoch} | error_dict)
@@ -242,7 +243,7 @@ def prediction(cfg: AppConfig) -> None:
     for t, p, task in zip(torch.split(target, 1, dim=-1), torch.split(pred, 1, dim=-1), cfg.data.target_list):
         scatter(
             [t, p],
-            scatter_label = 'eval',
+            scatter_label = ['eval'],
             output_path = f"{plot_dir}/{task}/{cfg.data.dataset_range}.png",
             )
 
