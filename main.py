@@ -235,6 +235,9 @@ def prediction(cfg: AppConfig) -> None:
         else:
             torch.save(pred[:, idx], f'{data_dir}/{subtask}/pred.pt')
             torch.save(target[:, idx], f'{data_dir}/{subtask}/target.pt')
+    if cfg.data.target_type == 'node':
+        batch = torch.cat([data.batch for data in loader])
+        torch.save(batch, f'{data_dir}/batch.pt')
 
     for t, p, task in zip(torch.split(target, 1, dim=-1), torch.split(pred, 1, dim=-1), cfg.data.target_list):
         scatter(
