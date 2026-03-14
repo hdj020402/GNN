@@ -17,3 +17,4 @@ hparam_tuning.yml
 test_data/
 docs/
 .claude/
+scripts/
