@@ -95,7 +95,8 @@ def training(cfg: AppConfig, trial: optuna.Trial | None = None) -> float:
         try:
             lr = scheduler.optimizer.param_groups[0]['lr']
             loss = train(model, train_loader, optimizer, cfg.training.loss_fn, device,
-                         cfg.training.accumulation_step, cfg.training.use_amp)
+                         cfg.training.accumulation_step, cfg.training.use_amp,
+                         cfg.training.grad_clip_norm)
             val_loss = validate(model, val_loader, cfg.training.loss_fn, device)
             error_dict['Overall']['LR'] = round(lr, 7)
             error_dict['Overall']['Loss'] = round(loss, 7)

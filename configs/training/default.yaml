@@ -24,3 +24,4 @@ early_stopping:
 criteria_list: []         # Metrics to track: MAE / MSE / RMSD / R2 / AARD / Cosine
 
 use_amp: false   # true → fp16/fp32 mixed precision (requires CUDA; recommend use_deterministic=false)
+grad_clip_norm: null  # Max gradient norm for clipping (null = disabled, e.g. 1.0)

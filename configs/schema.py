@@ -43,6 +43,7 @@ class TrainingConfig:
     early_stopping: EarlyStoppingConfig = field(default_factory=EarlyStoppingConfig)
     criteria_list: list[str] = field(default_factory=list)
     use_amp: bool = False
+    grad_clip_norm: float | None = None
 
 
 @dataclass

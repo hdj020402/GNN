@@ -44,6 +44,7 @@ def train(
     device: torch.device,
     accumulation_steps: int = 1,
     use_amp: bool = False,
+    grad_clip_norm: float | None = None,
     ) -> float:
     model.train()
     loss_all = 0
@@ -59,11 +60,15 @@ def train(
         loss.backward()
 
         if (i + 1) % accumulation_steps == 0:
+            if grad_clip_norm is not None:
+                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=grad_clip_norm)
             optimizer.step()
             optimizer.zero_grad()
         num_batches = i + 1
 
     if num_batches > 0 and num_batches % accumulation_steps != 0:
+        if grad_clip_norm is not None:
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=grad_clip_norm)
         optimizer.step()
         optimizer.zero_grad()
 
