@@ -1,6 +1,6 @@
 # Output / job identification settings.
 
 jobtype: experiment       # Used to name output directories:
-                          #   Training_Recording/{jobtype}/{timestamp}/
-                          #   HPTuning_Recording/{jobtype}/{timestamp}/
-                          #   Prediction_Recording/{jobtype}/{timestamp}/
+                          #   outputs/training/{jobtype}/{timestamp}/
+                          #   outputs/hpo/{jobtype}/{timestamp}/
+                          #   outputs/prediction/{jobtype}/{timestamp}/

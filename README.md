@@ -52,7 +52,7 @@ All modes use the same entry point:
 
 ```bash
 python main.py               # default: training mode
-python main.py mode=hparam_tuning
+python main.py mode=hpo
 python main.py mode=prediction pretrained_model=path/to/model.pth
 python main.py mode=fine-tuning pretrained_model=path/to/model.pth
 ```
@@ -65,25 +65,25 @@ nohup python main.py > recording.log 2>&1 &
 
 ### 5. Results
 
-All outputs are organized under `Recording/`:
+All outputs are organized under `outputs/`:
 
 ```
-Recording/
-├── Training_Recording/<jobtype>/<TIME>/
-│   ├── Model/
+outputs/
+├── training/<jobtype>/<TIME>/
+│   ├── model/
 │   │   ├── checkpoint/           # Periodic checkpoints
 │   │   └── best_model_*.pth      # Best model by val metric
-│   ├── Plot/                     # Scatter plots & training curves
-│   ├── TensorBoard/              # TensorBoard logs
+│   ├── plot/                     # Scatter plots & training curves
+│   ├── tensorboard/              # TensorBoard logs
 │   ├── training_*.log            # Training log
 │   └── config.yaml               # Config snapshot
-├── HPTuning_Recording/<jobtype>/<TIME>/
+├── hpo/<jobtype>/<TIME>/
 │   ├── Trial_000/ ... Trial_N/   # Per-trial results
-│   ├── hptuning_*.db             # Optuna study database
-│   └── hptuning_*.log
-└── Prediction_Recording/<jobtype>/<TIME>/
-    ├── Data/                     # Predictions & targets (.pt)
-    ├── Plot/                     # Scatter plots
+│   ├── hpo_*.db             # Optuna study database
+│   └── hpo_*.log
+└── prediction/<jobtype>/<TIME>/
+    ├── data/                     # Predictions & targets (.pt)
+    ├── plot/                     # Scatter plots
     └── prediction_*.log
 ```
 

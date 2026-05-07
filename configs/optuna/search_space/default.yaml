@@ -2,7 +2,7 @@
 # Override by selecting a different config group or creating your own:
 #
 #   configs/optuna/search_space/my_exp.yaml
-#   python main.py mode=hparam_tuning optuna/search_space=my_exp
+#   python main.py mode=hpo optuna/search_space=my_exp
 #
 # Supported types and their YAML format:
 #

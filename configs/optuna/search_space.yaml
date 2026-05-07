@@ -19,7 +19,7 @@
 #     q: 32
 #
 # The keys use dot-notation to match the Hydra config structure.
-# They are mapped to flat param keys in hparam_tuning() in main.py.
+# They are mapped to flat param keys in hpo() in main.py.
 
 training.lr:
   type: loguniform

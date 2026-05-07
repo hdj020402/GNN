@@ -18,7 +18,7 @@ from utils.timer import Timer
 from configs.schema import AppConfig
 
 
-# cfg keys included in run-record files (optuna omitted — saved separately in hparam_tuning.yml)
+# cfg keys included in run-record files (optuna omitted — saved separately in hpo.yml)
 _RECORD_KEYS = ['mode', 'seed', 'use_deterministic', 'GPU_memo_frac',
                 'pretrained_model', 'timestamp', 'data', 'training', 'model', 'output']
 
@@ -81,11 +81,11 @@ class FileProcessing:
 
         # ── Compute base directory ────────────────────────────────────────
         if self.cfg.mode == 'prediction':
-            self._base_dir = f'Recording/Prediction_Recording/{self.jobtype}/{self.TIME}'
-        elif self.cfg.mode == 'hparam_tuning':
-            self._base_dir = f'Recording/HPTuning_Recording/{self.jobtype}/{self.TIME}'
+            self._base_dir = f'outputs/prediction/{self.jobtype}/{self.TIME}'
+        elif self.cfg.mode == 'hpo':
+            self._base_dir = f'outputs/hpo/{self.jobtype}/{self.TIME}'
         else:
-            self._base_dir = f'Recording/Training_Recording/{self.jobtype}/{self.TIME}'
+            self._base_dir = f'outputs/training/{self.jobtype}/{self.TIME}'
 
         if self.cfg.mode == 'prediction':
             self.error_dict = {}
@@ -93,23 +93,23 @@ class FileProcessing:
                 self.error_dict[subtask] = {'Pred': {}}
             os.makedirs(self._base_dir)
             OmegaConf.save(self._record_cfg, f'{self._base_dir}/model_parameters.yml')
-            self.plot_dir = f'{self._base_dir}/Plot'
+            self.plot_dir = f'{self._base_dir}/plot'
             os.makedirs(self.plot_dir)
             make_subtask_dir(self.plot_dir)
-            self.data_dir = f'{self._base_dir}/Data'
+            self.data_dir = f'{self._base_dir}/data'
             os.makedirs(self.data_dir)
             make_subtask_dir(self.data_dir)
-            self.model_dir = f'{self._base_dir}/Model'
+            self.model_dir = f'{self._base_dir}/model'
             os.makedirs(self.model_dir)
             shutil.copy(self.cfg.pretrained_model, self.model_dir)
             self.log_file = f'{self._base_dir}/prediction_{self.TIME}.log'
             self.prediction_logger = setup_logger(f'prediction_{self.TIME}_logger', self.log_file)
 
-        elif self.cfg.mode == 'hparam_tuning':
+        elif self.cfg.mode == 'hpo':
             os.makedirs(self._base_dir, exist_ok=True)
-            self.optuna_log = f'{self._base_dir}/hptuning_{self.TIME}.log'
-            self.optuna_db = f'sqlite:///{self._base_dir}/hptuning_{self.TIME}.db'
-            self.hptuning_logger = setup_logger(f'hptuning_{self.TIME}_logger', self.optuna_log)
+            self.optuna_log = f'{self._base_dir}/hpo_{self.TIME}.log'
+            self.optuna_db = f'sqlite:///{self._base_dir}/hpo_{self.TIME}.db'
+            self.hpo_logger = setup_logger(f'hpo_{self.TIME}_logger', self.optuna_log)
 
             if self.trial is None:
                 return
@@ -119,35 +119,35 @@ class FileProcessing:
             trial_dir = f'{self._base_dir}/{trial_name}'
             os.makedirs(trial_dir)
             OmegaConf.save(self._record_cfg, f'{trial_dir}/model_parameters.yml')
-            if not os.path.exists(f'{self._base_dir}/hparam_tuning.yml'):
-                OmegaConf.save(self.cfg.optuna, f'{self._base_dir}/hparam_tuning.yml')
-            self.plot_dir = f'{trial_dir}/Plot'
+            if not os.path.exists(f'{self._base_dir}/hpo.yml'):
+                OmegaConf.save(self.cfg.optuna, f'{self._base_dir}/hpo.yml')
+            self.plot_dir = f'{trial_dir}/plot'
             os.makedirs(self.plot_dir)
             make_subtask_dir(self.plot_dir)
-            self.model_dir = f'{trial_dir}/Model'
+            self.model_dir = f'{trial_dir}/model'
             os.makedirs(self.model_dir)
-            self.ckpt_dir = f'{trial_dir}/Model/checkpoint'
+            self.ckpt_dir = f'{trial_dir}/model/checkpoint'
             os.makedirs(self.ckpt_dir)
             self.log_file = f'{trial_dir}/training_{trial_name}.log'
             self.training_logger = setup_logger(f'training_{trial_name}_logger', self.log_file)
-            self.tensorboard_dir = f'{trial_dir}/TensorBoard'
+            self.tensorboard_dir = f'{trial_dir}/tensorboard'
 
         else:
             os.makedirs(self._base_dir)
             OmegaConf.save(self._record_cfg, f'{self._base_dir}/model_parameters.yml')
-            self.plot_dir = f'{self._base_dir}/Plot'
+            self.plot_dir = f'{self._base_dir}/plot'
             os.makedirs(self.plot_dir)
             make_subtask_dir(self.plot_dir)
-            self.model_dir = f'{self._base_dir}/Model'
+            self.model_dir = f'{self._base_dir}/model'
             os.makedirs(self.model_dir)
-            self.ckpt_dir = f'{self._base_dir}/Model/checkpoint'
+            self.ckpt_dir = f'{self._base_dir}/model/checkpoint'
             os.makedirs(self.ckpt_dir)
-            recording_dir = f'Recording/Training_Recording/{self.jobtype}/recording'
+            recording_dir = f'outputs/training/{self.jobtype}/recording'
             if not os.path.isdir(recording_dir):
                 os.makedirs(recording_dir)
             self.log_file = f'{self._base_dir}/training_{self.TIME}.log'
             self.training_logger = setup_logger(f'training_{self.TIME}_logger', self.log_file)
-            self.tensorboard_dir = f'{self._base_dir}/TensorBoard'
+            self.tensorboard_dir = f'{self._base_dir}/tensorboard'
 
         self.gpu_logger = setup_logger(f'gpu_{self.TIME}_logger', f'{os.path.dirname(self.log_file)}/gpu_monitor.log')
 
@@ -253,14 +253,14 @@ class FileProcessing:
                 pre_dir = os.path.dirname(os.path.dirname(os.path.dirname(pretrained_model)))
                 pre_TIME = os.path.basename(pre_dir)
                 pre_log_file = os.path.join(pre_dir, f'training_{pre_TIME}.log')
-                shutil.copy(pre_log_file, f'Recording/Training_Recording/{self.jobtype}/{self.TIME}/pre.log')
+                shutil.copy(pre_log_file, f'outputs/training/{self.jobtype}/{self.TIME}/pre.log')
                 pre_log_info = LogParser(pre_log_file)
                 pre_log_text = pre_log_info.restart(start_epoch)
                 with open(self.log_file, 'a') as lf:
                     lf.writelines(pre_log_text)
 
                 best_model, best_optimizer = deepcopy(model), deepcopy(optimizer)
-                pre_best_model: dict = torch.load(f'{pre_dir}/Model/best_model_{pre_TIME}.pth')
+                pre_best_model: dict = torch.load(f'{pre_dir}/model/best_model_{pre_TIME}.pth')
                 self.load_model(pre_best_model, best_model, best_optimizer, mode)
                 model_saving.best_model(best_model, best_optimizer, pre_best_model['epoch'], pre_best_model['val_loss'])
         self.start_epoch = start_epoch
@@ -284,9 +284,9 @@ class FileProcessing:
                 f'Best is epoch {best_epoch} with value: {best_val_loss}.'
                 )
 
-    def hptuning_log(self, study: optuna.Study) -> None:
-        self.hptuning_logger.info(f'best value: {study.best_value}')
-        self.hptuning_logger.info(f'best params: {study.best_params}')
+    def hpo_log(self, study: optuna.Study) -> None:
+        self.hpo_logger.info(f'best value: {study.best_value}')
+        self.hpo_logger.info(f'best params: {study.best_params}')
 
     def ending_log(
         self,

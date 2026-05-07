@@ -1,5 +1,5 @@
 # Example search space for MPNN backbone.
-# Select with: python main.py mode=hparam_tuning optuna/search_space=mpnn_example
+# Select with: python main.py mode=hpo optuna/search_space=mpnn_example
 #
 # Keys use Hydra dot-notation paths (e.g. training.lr → cfg.training.lr).
 # OmegaConf interprets dotted keys as nested config paths, so the search

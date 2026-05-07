@@ -249,7 +249,7 @@ def prediction(cfg: AppConfig) -> None:
             )
 
 
-def hparam_tuning(cfg: AppConfig) -> None:
+def hpo(cfg: AppConfig) -> None:
     """Run Optuna hyperparameter search.
 
     Study settings come from ``cfg.optuna``.
@@ -275,7 +275,7 @@ def hparam_tuning(cfg: AppConfig) -> None:
     fp = FileProcessing(cfg)
     fp.pre_make()
     storage_name = fp.optuna_db
-    redirect_optuna_log(fp.hptuning_logger)
+    redirect_optuna_log(fp.hpo_logger)
 
     search_space_raw = OmegaConf.to_container(cfg.optuna.search_space, resolve=True) or {}
     search_space = _flatten_search_space(search_space_raw)
@@ -287,9 +287,9 @@ def hparam_tuning(cfg: AppConfig) -> None:
         return training(trial_cfg, trial=trial)
 
     optuna_cfg = OmegaConf.to_container(cfg.optuna, resolve=True)
-    study = create_study(optuna_cfg, f'hptuning_{cfg.output.jobtype}', storage_name)
+    study = create_study(optuna_cfg, f'hpo_{cfg.output.jobtype}', storage_name)
     study.optimize(objective, n_trials=cfg.optuna.n_trials)
-    fp.hptuning_log(study)
+    fp.hpo_log(study)
 
 
 @hydra.main(config_path="configs", config_name="config", version_base="1.3")
@@ -309,13 +309,13 @@ def main(cfg: DictConfig) -> None:
 
     if _cfg.mode in ['training', 'fine-tuning']:
         training(_cfg)
-    elif _cfg.mode == 'hparam_tuning':
-        hparam_tuning(_cfg)
+    elif _cfg.mode == 'hpo':
+        hpo(_cfg)
     elif _cfg.mode == 'prediction':
         prediction(_cfg)
     else:
         raise ValueError(
-            f"Invalid mode '{_cfg.mode}'. Valid: training / hparam_tuning / "
+            f"Invalid mode '{_cfg.mode}'. Valid: training / hpo / "
             "prediction / fine-tuning"
         )
 

@@ -1,6 +1,6 @@
 # Optuna study settings.
 # These control the search algorithm, pruner, and study lifecycle.
-# Override on CLI: python main.py mode=hparam_tuning optuna.n_trials=50
+# Override on CLI: python main.py mode=hpo optuna.n_trials=50
 
 sampler:
   type: TPESampler        # GridSampler / RandomSampler / TPESampler / CmaEsSampler
@@ -16,5 +16,5 @@ n_trials: 100
 # Resume an existing study instead of starting fresh.
 continue_study:
   enabled: false
-  storage: null           # e.g. sqlite:///HPTuning_Recording/test/study.db
+  storage: null           # e.g. sqlite:///outputs/hpo/test/study.db
   study_name: null        # null = auto-detect first study in storage
